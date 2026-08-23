@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Networks &amp; Neural Language Models — Interactive Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E9EDF1;
+  --panel:#FFFFFF;
+  --ink:#111823;
+  --ink-2:#37424F;
+  --muted:#6B7684;
+  --rule:#D2D9E0;
+  --rule-soft:#E4E9EE;
+  --fwd:#0E7C72;        /* forward signal  */
+  --fwd-soft:#D9EFEC;
+  --back:#A93475;       /* backward gradient */
+  --back-soft:#F7E1EE;
+  --neuron:#DD6149;     /* unit body */
+  --neuron-soft:#FBE4DF;
+  --bias:#B8860B;       /* bias term */
+  --bias-soft:#F7EBCD;
+  --shadow:0 1px 2px rgba(17,24,35,.05), 0 8px 24px -12px rgba(17,24,35,.18);
+  --r:14px;
+  --sans:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --serif:'Spectral',Georgia,'Times New Roman',serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  background-image:radial-gradient(circle at 1px 1px, rgba(17,24,35,.055) 1px, transparent 0);
+  background-size:22px 22px;
+  color:var(--ink);
+  font-family:var(--serif);
+  font-size:16.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,.ui{font-family:var(--sans)}
+code,.mono,.num{font-family:var(--mono)}
+
+/* ---------- layout ---------- */
+.wrap{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+.scrim{display:none}
+
+/* ---------- sidebar ---------- */
+aside{
+  border-right:1px solid var(--rule);
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(6px);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:22px 0 40px;
+}
+.brand{padding:0 22px 16px;border-bottom:1px solid var(--rule-soft);margin-bottom:14px}
+.brand .kicker{font-family:var(--sans);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.brand h1{font-size:17px;line-height:1.25;margin:7px 0 10px;font-weight:700;letter-spacing:-.01em}
+.pbar{height:5px;border-radius:99px;background:var(--rule-soft);overflow:hidden}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--fwd),var(--neuron));transition:width .45s cubic-bezier(.2,.7,.3,1)}
+.pnum{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
+.unit-label{
+  font-family:var(--sans);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;padding:16px 22px 6px;display:flex;gap:8px;align-items:center;
+}
+.unit-label::after{content:"";flex:1;height:1px;background:var(--rule-soft)}
+nav a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:7px 22px;text-decoration:none;color:var(--ink-2);
+  font-family:var(--sans);font-size:13.5px;line-height:1.35;
+  border-left:2px solid transparent;cursor:pointer;
+}
+nav a:hover{background:rgba(17,24,35,.035);color:var(--ink)}
+nav a .n{font-family:var(--mono);font-size:10.5px;color:var(--muted);min-width:18px;flex:none}
+nav a.active{background:#fff;border-left-color:var(--neuron);color:var(--ink);font-weight:600}
+nav a.done .n{color:var(--fwd)}
+nav a.done .n::after{content:"·"}
+
+/* ---------- main ---------- */
+main{min-width:0;display:flex;flex-direction:column}
+.stage{flex:1;max-width:880px;width:100%;margin:0 auto;padding:52px 40px 130px}
+.eyebrow{
+  font-family:var(--sans);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;display:flex;gap:12px;align-items:center;margin-bottom:14px;
+}
+.eyebrow .tag{background:var(--ink);color:#fff;padding:3px 8px;border-radius:5px;letter-spacing:.1em}
+h2.title{font-size:38px;line-height:1.1;letter-spacing:-.028em;font-weight:700;margin:0 0 6px}
+.sub{color:var(--muted);font-size:15px;font-style:italic;margin:0 0 30px}
+.prose p{margin:0 0 16px;max-width:66ch}
+.prose strong{font-weight:600;color:var(--ink);background:linear-gradient(transparent 62%, var(--neuron-soft) 62%)}
+.prose em{font-style:italic}
+h3.sec{font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:34px 0 12px;display:flex;gap:10px;align-items:center}
+h3.sec::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+/* ---------- panels ---------- */
+.panel{
+  background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:20px;margin:24px 0;
+}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:-4px 0 16px}
+.panel-head h4{font-size:13px;margin:0;font-weight:600;letter-spacing:-.005em}
+.panel-head .hint{font-family:var(--sans);font-size:11px;color:var(--muted)}
+.live{font-family:var(--sans);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fwd);font-weight:700;display:inline-flex;align-items:center;gap:5px}
+.live::before{content:"";width:6px;height:6px;border-radius:99px;background:var(--fwd);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+
+.callout{
+  border-left:3px solid var(--neuron);background:#fff;border-radius:0 10px 10px 0;
+  padding:14px 18px;margin:24px 0;box-shadow:var(--shadow);
+}
+.callout .lab{font-family:var(--sans);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--neuron);font-weight:700;display:block;margin-bottom:4px}
+.callout p{margin:0;font-size:15.5px}
+.warn{border-left-color:var(--back)}
+.warn .lab{color:var(--back)}
+
+/* ---------- controls ---------- */
+.ctrl{display:flex;align-items:center;gap:12px;margin:9px 0;font-family:var(--sans);font-size:12.5px}
+.ctrl label{min-width:74px;color:var(--ink-2);font-weight:500}
+.ctrl input[type=range]{flex:1;accent-color:var(--neuron);height:3px;cursor:pointer;min-width:80px}
+.ctrl .val{font-family:var(--mono);font-size:12px;min-width:56px;text-align:right;color:var(--ink);font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+button.btn{
+  font-family:var(--sans);font-size:12.5px;font-weight:600;
+  background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 15px;cursor:pointer;
+  transition:transform .12s ease, background .15s ease;
+}
+button.btn:hover{transform:translateY(-1px)}
+button.btn:active{transform:translateY(0)}
+button.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--rule)}
+button.btn.ghost:hover{border-color:var(--ink)}
+button.btn[disabled]{opacity:.4;cursor:not-allowed;transform:none}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.seg{display:inline-flex;background:var(--rule-soft);border-radius:8px;padding:3px;gap:2px}
+.seg button{
+  font-family:var(--sans);font-size:12px;font-weight:600;border:0;background:transparent;
+  color:var(--muted);padding:6px 13px;border-radius:6px;cursor:pointer;
+}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+/* ---------- math ---------- */
+.eq{
+  font-family:var(--mono);font-size:14.5px;text-align:center;
+  background:#fff;border:1px solid var(--rule);border-radius:10px;
+  padding:15px 12px;margin:18px 0;overflow-x:auto;white-space:nowrap;
+}
+.eq .hl-w{color:var(--neuron);font-weight:700}
+.eq .hl-b{color:var(--bias);font-weight:700}
+.eq .hl-x{color:var(--fwd);font-weight:700}
+.eq .hl-g{color:var(--back);font-weight:700}
+.eq small{display:block;font-family:var(--sans);font-size:10.5px;color:var(--muted);margin-top:7px;white-space:normal;letter-spacing:.04em}
+.inline{font-family:var(--mono);font-size:.92em;background:var(--rule-soft);padding:1px 5px;border-radius:4px}
+
+table.tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+table.tbl th{
+  font-family:var(--sans);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;text-align:right;padding:6px 8px;border-bottom:1px solid var(--rule);
+}
+table.tbl th:first-child,table.tbl td:first-child{text-align:left}
+table.tbl td{padding:5px 8px;border-bottom:1px solid var(--rule-soft);text-align:right}
+table.tbl tr:last-child td{border-bottom:0}
+.chg-up{color:var(--fwd)}.chg-dn{color:var(--back)}
+
+svg{display:block;max-width:100%;height:auto}
+.svgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+text{font-family:var(--mono);font-size:11px;fill:var(--ink)}
+text.lbl{font-family:var(--sans);font-size:10px;fill:var(--muted);letter-spacing:.06em}
+.axis{stroke:var(--rule);stroke-width:1}
+.gridline{stroke:var(--rule-soft);stroke-width:1}
+
+/* ---------- footer nav ---------- */
+footer{
+  position:fixed;bottom:0;left:280px;right:0;
+  background:rgba(233,237,241,.93);backdrop-filter:blur(10px);
+  border-top:1px solid var(--rule);padding:12px 40px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:40;
+}
+footer .mid{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center}
+footer .mid b{color:var(--ink);font-weight:500}
+footer .nx{display:flex;gap:8px}
+.menubtn{display:none}
+
+@media(max-width:900px){
+  .wrap{grid-template-columns:1fr}
+  aside{
+    position:fixed;left:0;top:0;bottom:0;width:270px;z-index:60;
+    transform:translateX(-100%);transition:transform .28s cubic-bezier(.3,.8,.3,1);
+    background:#fff;box-shadow:0 0 60px rgba(0,0,0,.2);height:100%;
+  }
+  aside.open{transform:none}
+  .scrim{display:block;position:fixed;inset:0;background:rgba(17,24,35,.4);z-index:55;opacity:0;pointer-events:none;transition:opacity .25s}
+  .scrim.on{opacity:1;pointer-events:auto}
+  footer{left:0;padding:10px 16px}
+  .stage{padding:26px 18px 120px}
+  h2.title{font-size:27px}
+  body{font-size:16px}
+  .menubtn{
+    display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:12px;font-weight:600;
+    background:#fff;border:1px solid var(--rule);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--ink);
+  }
+  footer .mid{display:none}
+}
+@media(max-width:760px){
+  /* below this width a full-width diagram becomes unreadable — scroll it instead of shrinking it */
+  .svgwrap svg{min-width:430px}
+  .svgwrap{padding-bottom:4px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+.fade{animation:fadein .4s ease both}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+:focus-visible{outline:2px solid var(--fwd);outline-offset:2px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside id="side">
+    <div class="brand">
+      <div class="kicker">NLP · Lecture T09</div>
+      <h1>Neural Networks &amp; Neural Language Models</h1>
+      <div class="pbar"><i id="pbar"></i></div>
+      <div class="pnum" id="pnum">0 / 0 lessons</div>
+    </div>
+    <nav id="nav"></nav>
+  </aside>
+  <main>
+    <div class="stage" id="stage"></div>
+  </main>
+</div>
+<div class="scrim" id="scrim"></div>
+<footer>
+  <button class="menubtn" id="menubtn">☰ Contents</button>
+  <button class="btn ghost" id="prev">← Back</button>
+  <div class="mid"><b id="fnum"></b> &nbsp;·&nbsp; <span id="ftitle"></span></div>
+  <div class="nx"><button class="btn" id="next">Next →</button></div>
+</footer>
+<script>
+/* ============================================================
+   Small helpers
+   ============================================================ */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const fmt=(v,d=3)=>Number(v).toFixed(d);
+const sig=z=>1/(1+Math.exp(-z));
+const tanh=z=>Math.tanh(z);
+const relu=z=>Math.max(0,z);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const SVGNS="http://www.w3.org/2000/svg";
+
+/* build an svg path for f over a range */
+function curve(f,x0,x1,y0,y1,W,H,steps=180){
+  let d="";
+  for(let i=0;i<=steps;i++){
+    const x=x0+(x1-x0)*i/steps, y=f(x);
+    const px=(x-x0)/(x1-x0)*W, py=H-(clamp(y,y0,y1)-y0)/(y1-y0)*H;
+    d+=(i?" L":"M")+px.toFixed(2)+" "+py.toFixed(2);
+  }
+  return d;
+}
+/* a labelled slider */
+function slider(label,min,max,step,val,fmtr=(v)=>fmt(v,2)){
+  return `<div class="ctrl"><label>${label}</label>
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${val}">
+    <span class="val">${fmtr(val)}</span></div>`;
+}
+function bindSliders(root,onchange){
+  $$('input[type=range]',root).forEach(inp=>{
+    inp.addEventListener('input',()=>{ onchange(); });
+  });
+}
+function readSliders(root,fmtr=(v)=>fmt(v,2)){
+  return $$('.ctrl',root).map(c=>{
+    const inp=$('input',c); if(!inp) return null;
+    const v=parseFloat(inp.value);
+    $('.val',c).textContent=fmtr(v);
+    return v;
+  }).filter(v=>v!==null);
+}
+/* horizontal bar */
+function bar(v,max,color,w=100){
+  const pct=clamp(Math.abs(v)/max,0,1)*100;
+  return `<div style="height:9px;background:var(--rule-soft);border-radius:99px;overflow:hidden;width:${w}%">
+    <i style="display:block;height:100%;width:${pct}%;background:${color};transition:width .25s ease"></i></div>`;
+}
+
+/* ============================================================
+   LESSONS
+   ============================================================ */
+const LESSONS=[];
+const L=(o)=>LESSONS.push(o);
+
+/* ---------- 1 ---------- */
+L({unit:"Orientation", title:"What a neural network actually is", slides:"Slides 1–4",
+sub:"A network of very small computing units, stacked in layers.",
+html:`
+<div class="prose">
+<p>A modern neural network is <strong>a network of small computing units</strong>. Each unit takes a vector of input values and produces a single output value. That is the whole idea. Everything else — depth, embeddings, transformers — is built from repeating that one part.</p>
+<p>The architecture in this lecture is called a <strong>feedforward network</strong>, because computation proceeds iteratively from one layer of units to the next, and never loops back. Using such networks is often called <em>deep learning</em>, because modern networks are deep: they have many layers.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Signal moving through a 3-layer network</h4><span class="hint">Press play to send a value through</span></div>
+  <div id="l1net"></div>
+  <div class="btnrow"><button class="btn" id="l1go">▶ Send a signal</button><span class="hint" id="l1msg">Idle</span></div>
+</div>
+<div class="prose">
+<h3 class="sec">How this compares to logistic regression</h3>
+<p>Neural networks share much of the same mathematics as <strong>logistic regression</strong>. But a neural network is a strictly more powerful classifier: a minimal network with a single hidden layer can be shown to learn <em>any</em> function.</p>
+<p>They also differ in where the features come from. With logistic regression you hand-build rich feature templates using domain knowledge. With neural networks you normally <strong>avoid hand-derived features</strong> — you feed in raw words and let the network <em>induce</em> its own features as part of learning to classify.</p>
+</div>
+<div class="callout"><span class="lab">Where we are going</span>
+<p>Feedforward nets as classifiers, then as <b>language models</b> — assigning probabilities to word sequences and predicting upcoming words. Later lectures build on this with recurrent nets, the Transformer, contextual embeddings like BERT, and encoder–decoder models with attention.</p></div>
+`,
+init(){
+  const W=620,H=200, layers=[[60,4],[240,5],[420,3],[560,2]];
+  let svg=`<div class="svgwrap"><svg viewBox="0 0 ${W} ${H}">`;
+  const pos=layers.map(([x,n])=>Array.from({length:n},(_,i)=>[x,H/2+(i-(n-1)/2)*36]));
+  for(let l=0;l<pos.length-1;l++)
+    pos[l].forEach((a,i)=>pos[l+1].forEach((b,j)=>{
+      svg+=`<line class="edge e${l}" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="var(--rule)" stroke-width="1"/>`;
+    }));
+  const names=["input","hidden 1","hidden 2","output"];
+  pos.forEach((layer,l)=>{ layer.forEach(([x,y],i)=>{
+      svg+=`<circle class="nd n${l}" cx="${x}" cy="${y}" r="11" fill="#fff" stroke="var(--rule)" stroke-width="1.5"/>`;});
+      svg+=`<text class="lbl" x="${layers[l][0]}" y="${H-8}" text-anchor="middle">${names[l]}</text>`;});
+  svg+=`</svg></div>`;
+  $('#l1net').innerHTML=svg;
+  $('#l1go').onclick=()=>{
+    const msg=$('#l1msg'); $('#l1go').disabled=true;
+    $$('.nd').forEach(n=>{n.setAttribute('fill','#fff');n.setAttribute('stroke','var(--rule)')});
+    $$('.edge').forEach(e=>{e.setAttribute('stroke','var(--rule)');e.setAttribute('stroke-width','1')});
+    [0,1,2,3].forEach(l=>setTimeout(()=>{
+      $$('.n'+l).forEach(n=>{n.setAttribute('fill','var(--neuron)');n.setAttribute('stroke','var(--neuron)')});
+      if(l<3)$$('.e'+l).forEach(e=>{e.setAttribute('stroke','var(--fwd)');e.setAttribute('stroke-width','1.6')});
+      msg.textContent=["Input layer holds the raw numbers","Hidden layer 1 builds simple features","Hidden layer 2 combines them","Output layer produces the answer"][l];
+      if(l===3){setTimeout(()=>{$('#l1go').disabled=false;},500);}
+    },l*620));
+  };
+}});
+
+/* ---------- 2 ---------- */
+L({unit:"The single unit", title:"The unit: a weighted sum", slides:"Slide 5",
+sub:"One neuron = multiply, add, done.",
+html:`
+<div class="prose">
+<p>The building block of a neural network is a single <strong>computational unit</strong>. A unit takes a set of real-valued numbers as input, performs some computation on them, and produces an output.</p>
+<p>At its heart, a neural unit is taking a <strong>weighted sum of its inputs</strong>, with one additional term in the sum called a <strong>bias term</strong>. Given inputs <span class="inline">x₁…xₙ</span>, the unit has corresponding weights <span class="inline">w₁…wₙ</span> and a bias <span class="inline">b</span>.</p>
+</div>
+<div class="eq">z = <span class="hl-b">b</span> + Σᵢ <span class="hl-w">wᵢ</span><span class="hl-x">xᵢ</span> &nbsp;&nbsp;&nbsp;⟺&nbsp;&nbsp;&nbsp; z = <span class="hl-w">w</span> · <span class="hl-x">x</span> + <span class="hl-b">b</span>
+<small>The sum form and the dot-product form are the same thing. The vector form is what gets implemented.</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Build the weighted sum yourself</h4><span class="live">live</span></div>
+  <div class="grid2">
+    <div>
+      <div style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--fwd);font-weight:700;margin-bottom:6px">Inputs x</div>
+      <div id="l2x"></div>
+      <div style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--neuron);font-weight:700;margin:14px 0 6px">Weights w</div>
+      <div id="l2w"></div>
+      <div style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--bias);font-weight:700;margin:14px 0 6px">Bias b</div>
+      <div id="l2b"></div>
+    </div>
+    <div><div id="l2out"></div></div>
+  </div>
+</div>
+<div class="callout"><span class="lab">Read it this way</span>
+<p>A weight says <b>how much this input matters</b>, and its sign says whether the input pushes the answer up or down. The bias is the unit's opinion <b>before it sees any input at all</b> — a constant nudge.</p></div>
+`,
+init(){
+  const xs=$('#l2x'),ws=$('#l2w'),bs=$('#l2b');
+  xs.innerHTML=slider("x₁",-2,2,.1,0.5)+slider("x₂",-2,2,.1,0.6)+slider("x₃",-2,2,.1,0.1);
+  ws.innerHTML=slider("w₁",-2,2,.1,0.2)+slider("w₂",-2,2,.1,0.3)+slider("w₃",-2,2,.1,0.9);
+  bs.innerHTML=slider("b",-2,2,.1,0.5);
+  const draw=()=>{
+    const x=readSliders(xs),w=readSliders(ws),b=readSliders(bs)[0];
+    const terms=x.map((v,i)=>v*w[i]); const z=b+terms.reduce((a,c)=>a+c,0);
+    let rows=terms.map((t,i)=>`<tr><td>w${i+1}·x${i+1}</td><td>${fmt(w[i],2)} × ${fmt(x[i],2)}</td>
+      <td style="color:${t>=0?'var(--fwd)':'var(--back)'}">${t>=0?'+':''}${fmt(t)}</td></tr>`).join('');
+    rows+=`<tr><td>bias</td><td>b</td><td style="color:var(--bias)">${b>=0?'+':''}${fmt(b)}</td></tr>`;
+    $('#l2out').innerHTML=`<table class="tbl"><tr><th>term</th><th>value</th><th>contributes</th></tr>${rows}</table>
+      <div style="margin-top:18px;text-align:center">
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">weighted sum z</div>
+        <div class="mono" style="font-size:34px;font-weight:700;letter-spacing:-.02em;color:${z>=0?'var(--fwd)':'var(--back)'}">${fmt(z)}</div>
+      </div>`;
+  };
+  bindSliders($('#l2x').parentElement,draw); draw();
+}});
+
+/* ---------- 3 ---------- */
+L({unit:"The single unit", title:"Activation: adding the bend", slides:"Slide 6",
+sub:"Why a unit never stops at z.",
+html:`
+<div class="prose">
+<p>Instead of using <span class="inline">z</span>, a <em>linear</em> function of <span class="inline">x</span>, as the output, neural units apply a <strong>non-linear function f</strong> to z. The output of this function is the <strong>activation value</strong> for the unit, written <span class="inline">a</span>.</p>
+<p>Since we are just modeling a single unit, the activation for the node is in fact the final output of the network, which we generally call <span class="inline">y</span>:</p>
+</div>
+<div class="eq">y = a = f(z) = f(<span class="hl-w">w</span>·<span class="hl-x">x</span> + <span class="hl-b">b</span>)
+<small>Three popular choices for f: the sigmoid, the tanh, and the rectified linear unit (ReLU).</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Why the bend matters</h4><span class="hint">Stacking linear layers gains you nothing</span></div>
+  <div id="l3demo"></div>
+  <div class="btnrow"><div class="seg" id="l3seg"><button class="on" data-m="lin">No activation</button><button data-m="act">With activation</button></div></div>
+</div>
+<div class="callout warn"><span class="lab">The key consequence</span>
+<p>A stack of linear layers collapses into <b>one</b> linear layer — depth buys you nothing. The non-linearity is what lets layer 2 do something layer 1 could not. Remove it and a 50-layer network is just a very expensive straight line.</p></div>
+`,
+init(){
+  const W=560,H=210;
+  const render=(mode)=>{
+    const f = mode==='lin' ? (x=>0.9*x) : (x=>Math.tanh(1.6*x));
+    const g2 = mode==='lin' ? (x=>0.9*0.9*x) : (x=>Math.tanh(1.6*Math.tanh(1.6*x)));
+    const y0=-2,y1=2,x0=-2,x1=2;
+    const px=x=>(x-x0)/(x1-x0)*W, py=y=>H-(y-y0)/(y1-y0)*H;
+    $('#l3demo').innerHTML=`<div class="svgwrap"><svg viewBox="-30 -12 ${W+60} ${H+40}">
+      <line class="axis" x1="0" y1="${py(0)}" x2="${W}" y2="${py(0)}"/>
+      <line class="axis" x1="${px(0)}" y1="0" x2="${px(0)}" y2="${H}"/>
+      <path d="${curve(f,x0,x1,y0,y1,W,H)}" fill="none" stroke="var(--rule)" stroke-width="2" stroke-dasharray="4 3"/>
+      <path d="${curve(g2,x0,x1,y0,y1,W,H)}" fill="none" stroke="${mode==='lin'?'var(--back)':'var(--fwd)'}" stroke-width="2.6"/>
+      <text class="lbl" x="${W}" y="${py(0)-8}" text-anchor="end">input</text>
+      <text class="lbl" x="${W-4}" y="${H+26}" text-anchor="end">dashed = one layer · solid = two layers stacked</text>
+      </svg></div>
+      <p style="font-family:var(--sans);font-size:13px;color:var(--muted);margin:10px 0 0">${
+        mode==='lin'
+        ? "Two linear layers produce another straight line. The second layer only changed the slope — it added no new shape."
+        : "Two non-linear layers produce a shape neither layer could make alone. That new shape is what depth buys you."}</p>`;
+  };
+  render('lin');
+  $$('#l3seg button').forEach(b=>b.onclick=()=>{
+    $$('#l3seg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); render(b.dataset.m);
+  });
+}});
+
+/* ---------- 4 ---------- */
+L({unit:"The single unit", title:"The sigmoid, worked by hand", slides:"Slides 7–9",
+sub:"Squashing any real number into (0, 1).",
+html:`
+<div class="prose">
+<p>The <strong>sigmoid</strong> σ(z) maps the whole real line into the range 0 to 1, which is exactly what you want when the output should be read as a probability. It is nearly linear around z = 0 but flattens out at the extremes.</p>
+</div>
+<div class="eq">y = σ(<span class="hl-w">w</span>·<span class="hl-x">x</span>+<span class="hl-b">b</span>) = 1 / (1 + e<sup>−(w·x+b)</sup>)</div>
+<div class="panel">
+  <div class="panel-head"><h4>The lecture's worked example</h4><span class="hint">Drag z along the curve</span></div>
+  <div id="l4plot"></div>
+  <div id="l4ctl" style="margin-top:6px"></div>
+  <div id="l4work"></div>
+</div>
+<div class="callout"><span class="lab">The numbers from the slide</span>
+<p>With <b>w = [0.2, 0.3, 0.9]</b>, <b>b = 0.5</b> and <b>x = [0.5, 0.6, 0.1]</b>:<br>
+z = 0.5·0.2 + 0.6·0.3 + 0.1·0.9 + 0.5 = <b>0.87</b>, so y = 1/(1+e<sup>−0.87</sup>) = <b>0.70</b>.</p></div>
+`,
+init(){
+  const W=560,H=200,x0=-6,x1=6,y0=-0.05,y1=1.05;
+  const px=x=>(x-x0)/(x1-x0)*W, py=y=>H-(y-y0)/(y1-y0)*H;
+  $('#l4ctl').innerHTML=slider("z",-6,6,.01,0.87);
+  const draw=()=>{
+    const z=readSliders($('#l4ctl'))[0], y=sig(z);
+    $('#l4plot').innerHTML=`<div class="svgwrap"><svg viewBox="-34 -14 ${W+60} ${H+42}">
+      <line class="gridline" x1="0" y1="${py(1)}" x2="${W}" y2="${py(1)}" stroke-dasharray="3 3"/>
+      <line class="gridline" x1="0" y1="${py(.5)}" x2="${W}" y2="${py(.5)}" stroke-dasharray="3 3"/>
+      <line class="axis" x1="0" y1="${py(0)}" x2="${W}" y2="${py(0)}"/>
+      <line class="axis" x1="${px(0)}" y1="-6" x2="${px(0)}" y2="${H}"/>
+      <path d="${curve(sig,x0,x1,y0,y1,W,H)}" fill="none" stroke="var(--fwd)" stroke-width="2.6"/>
+      <line x1="${px(z)}" y1="${py(0)}" x2="${px(z)}" y2="${py(y)}" stroke="var(--neuron)" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <line x1="${px(x0)}" y1="${py(y)}" x2="${px(z)}" y2="${py(y)}" stroke="var(--neuron)" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <circle cx="${px(z)}" cy="${py(y)}" r="6" fill="var(--neuron)"/>
+      <text x="-8" y="${py(1)+4}" text-anchor="end" class="lbl">1.0</text>
+      <text x="-8" y="${py(0)+4}" text-anchor="end" class="lbl">0.0</text>
+      <text x="${px(z)}" y="${H+26}" text-anchor="middle" class="lbl">z = ${fmt(z,2)}</text>
+      </svg></div>`;
+    $('#l4work').innerHTML=`<div class="eq" style="margin-bottom:0">
+      σ(${fmt(z,2)}) = 1 / (1 + e<sup>−${fmt(z,2)}</sup>) = 1 / (1 + ${fmt(Math.exp(-z),4)}) = <b style="color:var(--fwd)">${fmt(y,4)}</b>
+      <small>${z>4?'Saturated high — the curve is nearly flat here, and that flatness will cause trouble in a few lessons.':z<-4?'Saturated low — nearly flat again.':'In the responsive middle band, where small changes in z still move y.'}</small></div>`;
+  };
+  bindSliders($('#l4ctl'),draw); draw();
+}});
+/* ---------- 5 ---------- */
+L({unit:"The single unit", title:"tanh and ReLU", slides:"Slides 10–11",
+sub:"Three activation functions, three personalities.",
+html:`
+<div class="prose">
+<p>In practice the sigmoid is <strong>not commonly used</strong> as an activation function. A function that is very similar but almost always better is the <strong>tanh</strong>, a variant of the sigmoid that ranges from −1 to +1.</p>
+<p>The simplest activation function, and perhaps the most commonly used, is the <strong>rectified linear unit</strong> or <strong>ReLU</strong>. It is just the same as z when z is positive, and 0 otherwise.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Compare all three</h4><span class="hint">Toggle any curve on or off</span></div>
+  <div class="btnrow" style="margin:0 0 10px"><div class="seg" id="l5seg">
+    <button class="on" data-f="sig">sigmoid</button><button class="on" data-f="tanh">tanh</button><button class="on" data-f="relu">ReLU</button></div></div>
+  <div id="l5plot"></div>
+  <div id="l5ctl"></div>
+  <div id="l5read"></div>
+</div>
+<div class="prose">
+<p>These functions have different properties that make them useful for different language applications or network architectures. The tanh has the nice property of being <strong>smoothly differentiable</strong> and of mapping outlier values toward the mean. The rectifier, on the other hand, has nice properties that come from it being <strong>very close to linear</strong>.</p>
+</div>
+<div class="grid3">
+  <div class="panel" style="margin:0"><div style="font-family:var(--sans);font-weight:700;font-size:13px;margin-bottom:6px">sigmoid</div>
+  <div class="mono" style="font-size:11.5px;color:var(--muted)">range 0 → 1</div>
+  <p style="font-size:14px;margin:8px 0 0">Reads as a probability. Not zero-centred, and it saturates hard at both ends.</p></div>
+  <div class="panel" style="margin:0"><div style="font-family:var(--sans);font-weight:700;font-size:13px;margin-bottom:6px">tanh</div>
+  <div class="mono" style="font-size:11.5px;color:var(--muted)">range −1 → 1</div>
+  <p style="font-size:14px;margin:8px 0 0">Zero-centred and smooth. Almost always a better drop-in than sigmoid for hidden layers.</p></div>
+  <div class="panel" style="margin:0"><div style="font-family:var(--sans);font-weight:700;font-size:13px;margin-bottom:6px">ReLU</div>
+  <div class="mono" style="font-size:11.5px;color:var(--muted)">range 0 → ∞</div>
+  <p style="font-size:14px;margin:8px 0 0">Cheap, and never saturates on the positive side. The usual default in hidden layers.</p></div>
+</div>
+`,
+init(){
+  const W=560,H=230,x0=-4,x1=4,y0=-1.3,y1=2.6;
+  const px=x=>(x-x0)/(x1-x0)*W, py=y=>H-(y-y0)/(y1-y0)*H;
+  const on={sig:1,tanh:1,relu:1};
+  $('#l5ctl').innerHTML=slider("z",-4,4,.01,1);
+  const draw=()=>{
+    const z=readSliders($('#l5ctl'))[0];
+    const defs=[["sig",sig,"var(--fwd)"],["tanh",tanh,"var(--neuron)"],["relu",relu,"var(--bias)"]];
+    let s=`<div class="svgwrap"><svg viewBox="-34 -14 ${W+60} ${H+42}">
+      <line class="axis" x1="0" y1="${py(0)}" x2="${W}" y2="${py(0)}"/>
+      <line class="axis" x1="${px(0)}" y1="-6" x2="${px(0)}" y2="${H}"/>
+      <line class="gridline" x1="0" y1="${py(1)}" x2="${W}" y2="${py(1)}" stroke-dasharray="3 3"/>
+      <line class="gridline" x1="0" y1="${py(-1)}" x2="${W}" y2="${py(-1)}" stroke-dasharray="3 3"/>`;
+    defs.forEach(([k,f,c])=>{ if(on[k]) s+=`<path d="${curve(f,x0,x1,y0,y1,W,H)}" fill="none" stroke="${c}" stroke-width="2.6"/>`; });
+    s+=`<line x1="${px(z)}" y1="0" x2="${px(z)}" y2="${H}" stroke="var(--rule)" stroke-width="1.2"/>`;
+    defs.forEach(([k,f,c])=>{ if(on[k]) s+=`<circle cx="${px(z)}" cy="${py(clamp(f(z),y0,y1))}" r="5.5" fill="${c}"/>`; });
+    s+=`<text class="lbl" x="-8" y="${py(1)+4}" text-anchor="end">1</text>
+        <text class="lbl" x="-8" y="${py(-1)+4}" text-anchor="end">−1</text>
+        <text class="lbl" x="${px(z)}" y="${H+26}" text-anchor="middle">z = ${fmt(z,2)}</text></svg></div>`;
+    $('#l5plot').innerHTML=s;
+    $('#l5read').innerHTML=`<div class="grid3" style="margin-top:8px">
+      <div style="text-align:center"><div class="lbl" style="font-family:var(--sans);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--fwd)">σ(z)</div><div class="mono" style="font-size:20px;font-weight:700">${fmt(sig(z))}</div></div>
+      <div style="text-align:center"><div class="lbl" style="font-family:var(--sans);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--neuron)">tanh(z)</div><div class="mono" style="font-size:20px;font-weight:700">${fmt(tanh(z))}</div></div>
+      <div style="text-align:center"><div class="lbl" style="font-family:var(--sans);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--bias)">ReLU(z)</div><div class="mono" style="font-size:20px;font-weight:700">${fmt(relu(z))}</div></div></div>`;
+  };
+  $$('#l5seg button').forEach(b=>b.onclick=()=>{ on[b.dataset.f]=!on[b.dataset.f]; b.classList.toggle('on'); draw(); });
+  bindSliders($('#l5ctl'),draw); draw();
+}});
+
+/* ---------- 6 ---------- */
+L({unit:"The single unit", title:"The vanishing gradient problem", slides:"Slide 12",
+sub:"Why sigmoid stops working once the network gets deep.",
+html:`
+<div class="prose">
+<p>In the sigmoid or tanh, very high values of z result in <strong>saturated</strong> values of y — extremely close to 1 — and derivatives very close to 0.</p>
+<p>Zero derivatives cause problems for learning. We train networks by propagating an error signal backwards, multiplying gradients from each layer of the network. Gradients that are almost 0 cause the error signal to get <strong>smaller and smaller until it is too small to be used for training</strong>. This is the <strong>vanishing gradient problem</strong>.</p>
+<p>Rectifiers do not have this problem, since the derivative of ReLU for high values of z is <strong>1</strong> rather than very close to 0.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Watch the error signal die as it travels back</h4><span class="live">live</span></div>
+  <div id="l6ctl"></div>
+  <div class="btnrow" style="margin-top:4px"><div class="seg" id="l6seg"><button class="on" data-a="sig">sigmoid layers</button><button data-a="relu">ReLU layers</button></div></div>
+  <div id="l6out" style="margin-top:16px"></div>
+</div>
+<div class="callout warn"><span class="lab">The arithmetic behind it</span>
+<p>The derivative of the sigmoid is at most <b>0.25</b>, and that is only at z = 0. Backprop multiplies one such factor per layer. Ten layers gives you at worst 0.25<sup>10</sup> ≈ 0.00000095 — the early layers receive essentially nothing, so their weights barely move no matter how long you train.</p></div>
+`,
+init(){
+  $('#l6ctl').innerHTML=slider("depth",2,14,1,8,v=>v+" layers")+slider("|z| at each",0,4,.1,1.2);
+  let act='sig';
+  const draw=()=>{
+    const [d,z]=readSliders($('#l6ctl'),v=>fmt(v,1));
+    const depth=Math.round(d);
+    const dsig=sig(z)*(1-sig(z));
+    const per = act==='sig' ? dsig : (z>0?1:0);
+    let g=1, rows='';
+    for(let i=0;i<depth;i++){
+      g*=per;
+      const w=clamp(g,1e-12,1);
+      rows+=`<tr><td>layer ${depth-i}</td><td>× ${fmt(per,4)}</td>
+        <td style="width:44%">${bar(Math.pow(w,0.22),1,g<1e-3?'var(--back)':'var(--fwd)')}</td>
+        <td class="mono" style="color:${g<1e-3?'var(--back)':'var(--ink)'}">${g<1e-4?g.toExponential(2):fmt(g,6)}</td></tr>`;
+    }
+    $('#l6out').innerHTML=`<table class="tbl"><tr><th>travelling back through</th><th>local derivative</th><th>signal strength</th><th>gradient</th></tr>${rows}</table>
+      <p style="font-family:var(--sans);font-size:13px;margin:14px 0 0;color:${g<1e-3?'var(--back)':'var(--fwd)'}">
+      ${act==='sig'
+        ? (g<1e-3 ? `Dead. By the time the signal reaches layer 1 the gradient is ${g.toExponential(2)} — those weights will not learn.`
+                  : `Still alive, but shrinking fast. Add a few more layers and watch it collapse.`)
+        : (z>0 ? `ReLU's derivative is exactly 1 on the positive side, so the signal arrives at layer 1 undamaged.`
+               : `Careful: when z ≤ 0 the ReLU derivative is 0 and the unit passes nothing back at all — the "dying ReLU" case.`)}</p>`;
+  };
+  $$('#l6seg button').forEach(b=>b.onclick=()=>{ $$('#l6seg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); act=b.dataset.a; draw(); });
+  bindSliders($('#l6ctl'),draw); draw();
+}});
+
+/* ---------- 7 ---------- */
+L({unit:"Why we need layers", title:"The perceptron cannot do XOR", slides:"Slides 13–16",
+sub:"A single unit only ever draws one straight line.",
+html:`
+<div class="prose">
+<p>A single neural unit cannot compute some very simple functions of its input. Consider computing elementary logical functions of two inputs: <strong>AND</strong>, <strong>OR</strong>, and <strong>XOR</strong>. This was first shown for the <strong>perceptron</strong>, a very simple unit with a binary output and no non-linear activation.</p>
+<p>It is very easy to build a perceptron that computes AND and OR. It turns out, however, that <strong>it is not possible to build a perceptron that computes XOR</strong>.</p>
+<p>The reason is that a perceptron is a <strong>linear classifier</strong>. For a two-dimensional input, the perceptron equation <span class="inline">w₁x₁ + w₂x₂ + b = 0</span> is the equation of a line. That line acts as a <strong>decision boundary</strong>: output 0 on one side, output 1 on the other.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Try to separate the classes with one line</h4><span class="hint">Drag the sliders. XOR will defeat you.</span></div>
+  <div class="btnrow" style="margin:0 0 12px"><div class="seg" id="l7seg"><button class="on" data-g="AND">AND</button><button data-g="OR">OR</button><button data-g="XOR">XOR</button></div></div>
+  <div class="grid2">
+    <div id="l7plot"></div>
+    <div><div id="l7ctl"></div><div id="l7res" style="margin-top:14px"></div></div>
+  </div>
+</div>
+<div class="callout warn"><span class="lab">Not linearly separable</span>
+<p>For XOR the positive cases are <b>(0,1)</b> and <b>(1,0)</b> — diagonally opposite corners. The negative cases <b>(0,0)</b> and <b>(1,1)</b> are the other diagonal. No straight line can put one diagonal on one side and the other diagonal on the other. XOR is <b>not a linearly separable function</b>.</p></div>
+`,
+init(){
+  let gate='AND';
+  const truth={AND:[0,0,0,1],OR:[0,1,1,1],XOR:[0,1,1,0]};
+  const pts=[[0,0],[0,1],[1,0],[1,1]];
+  $('#l7ctl').innerHTML=slider("w₁",-2,2,.05,1)+slider("w₂",-2,2,.05,1)+slider("b",-2,2,.05,-1.5);
+  const S=300,pad=44;
+  const draw=()=>{
+    const [w1,w2,b]=readSliders($('#l7ctl'));
+    const px=x=>pad+x*(S-2*pad)/1.4, py=y=>S-pad-y*(S-2*pad)/1.4;
+    let s=`<div class="svgwrap"><svg viewBox="0 0 ${S} ${S+8}">
+      <line class="axis" x1="${px(0)}" y1="${py(0)}" x2="${px(1.35)}" y2="${py(0)}" marker-end=""/>
+      <line class="axis" x1="${px(0)}" y1="${py(0)}" x2="${px(0)}" y2="${py(1.35)}"/>
+      <text class="lbl" x="${px(1.35)}" y="${py(0)+16}" text-anchor="end">x₁</text>
+      <text class="lbl" x="${px(0)-6}" y="${py(1.35)+4}" text-anchor="end">x₂</text>`;
+    /* decision line: w1 x1 + w2 x2 + b = 0 */
+    if(Math.abs(w2)>1e-6){
+      const f=x=>-(w1*x+b)/w2;
+      s+=`<line x1="${px(-0.3)}" y1="${py(f(-0.3))}" x2="${px(1.5)}" y2="${py(f(1.5))}" stroke="var(--back)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    } else if(Math.abs(w1)>1e-6){
+      const xv=-b/w1; s+=`<line x1="${px(xv)}" y1="${py(-0.3)}" x2="${px(xv)}" y2="${py(1.5)}" stroke="var(--back)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    }
+    let correct=0;
+    pts.forEach((p,i)=>{
+      const t=truth[gate][i], pred=(w1*p[0]+w2*p[1]+b)>0?1:0;
+      if(t===pred) correct++;
+      s+=`<circle cx="${px(p[0])}" cy="${py(p[1])}" r="9"
+        fill="${t?'var(--ink)':'#fff'}" stroke="${t===pred?'var(--fwd)':'var(--back)'}" stroke-width="${t===pred?2:3}"/>`;
+      s+=`<text class="lbl" x="${px(p[0])+15}" y="${py(p[1])+4}">${p[0]},${p[1]}→${t}</text>`;
+    });
+    s+=`<text class="lbl" x="${px(0)-6}" y="${py(0)+16}" text-anchor="end">0</text>
+        <text class="lbl" x="${px(1)}" y="${py(0)+18}" text-anchor="middle">1</text></svg></div>`;
+    $('#l7plot').innerHTML=s;
+    $('#l7res').innerHTML=`<div style="text-align:center">
+      <div class="lbl" style="font-family:var(--sans);font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted)">correct corners</div>
+      <div class="mono" style="font-size:32px;font-weight:700;color:${correct===4?'var(--fwd)':'var(--back)'}">${correct} / 4</div>
+      <p style="font-family:var(--sans);font-size:12.5px;color:var(--muted);margin:8px 0 0">
+      ${correct===4?'Solved — a single line does the job for this gate.':
+        gate==='XOR'?'You will not reach 4/4. Three is the ceiling for XOR with one line.':'Keep adjusting — this one is solvable.'}</p>
+      <div class="mono" style="font-size:11px;color:var(--muted);margin-top:12px">filled = target 1 · hollow = target 0<br>green ring = predicted right</div></div>`;
+  };
+  $$('#l7seg button').forEach(b=>b.onclick=()=>{ $$('#l7seg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); gate=b.dataset.g; draw(); });
+  bindSliders($('#l7ctl'),draw); draw();
+}});
+
+/* ---------- 8 ---------- */
+L({unit:"Why we need layers", title:"Two layers of ReLU solve XOR", slides:"Slides 17–18",
+sub:"The hidden layer builds a new representation of the input.",
+html:`
+<div class="prose">
+<p>XOR <em>can</em> be computed — by a <strong>layered</strong> network. Rather than networks of simple perceptrons, let's compute XOR using two layers of ReLU-based units. The middle layer, called <strong>h</strong>, has two units; the output layer, called <strong>y</strong>, has one. A specific set of weights and biases makes this work exactly.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>The XOR network, running</h4><span class="hint">Click an input corner</span></div>
+  <div class="btnrow" style="margin:0 0 14px"><div class="seg" id="l8seg">
+    <button class="on" data-i="0,0">x = 0,0</button><button data-i="0,1">0,1</button><button data-i="1,0">1,0</button><button data-i="1,1">1,1</button></div></div>
+  <div id="l8net"></div>
+  <div id="l8work"></div>
+</div>
+<div class="prose">
+<h3 class="sec">What the hidden layer did</h3>
+<p>The hidden layer forms a <strong>new representation of the input</strong>. Compare the hidden layer's representation h against the original input representation x. Notice that the input point <strong>[0, 1] has been collapsed onto the input point [1, 0]</strong> — they now sit at exactly the same place. That collapse is what makes it possible to linearly separate the positive and negative cases of XOR.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Input space → hidden space</h4><span class="hint">Press to morph</span></div>
+  <div id="l8morph"></div>
+  <div class="btnrow"><button class="btn" id="l8go">▶ Transform</button><span class="hint" id="l8msg">Original input space x</span></div>
+</div>
+`,
+init(){
+  /* network: h1 = relu(x1+x2+0), h2 = relu(x1+x2-1), y = relu(h1 - 2*h2 + 0) */
+  const compute=(x1,x2)=>{
+    const z1=x1+x2, z2=x1+x2-1;
+    const h1=relu(z1), h2=relu(z2);
+    const zy=h1-2*h2;
+    return {z1,z2,h1,h2,zy,y:relu(zy)};
+  };
+  let cur=[0,0];
+  const drawNet=()=>{
+    const [x1,x2]=cur, r=compute(x1,x2);
+    const W=560,H=210;
+    const P={x1:[70,70],x2:[70,150],h1:[280,70],h2:[280,150],y:[470,110]};
+    const node=(k,v,active)=>`<circle cx="${P[k][0]}" cy="${P[k][1]}" r="21"
+       fill="${active?'var(--neuron)':'#fff'}" stroke="${active?'var(--neuron)':'var(--rule)'}" stroke-width="2"/>
+      <text x="${P[k][0]}" y="${P[k][1]+4}" text-anchor="middle" style="fill:${active?'#fff':'var(--ink)'};font-weight:700">${fmt(v,1)}</text>`;
+    const edge=(a,b,w,live)=>`<line x1="${P[a][0]+21}" y1="${P[a][1]}" x2="${P[b][0]-21}" y2="${P[b][1]}"
+       stroke="${live?'var(--fwd)':'var(--rule)'}" stroke-width="${live?2.2:1.3}"/>`;
+    const eLbl=(a,b,w,dy=-6)=>{const mx=(P[a][0]+P[b][0])/2,my=(P[a][1]+P[b][1])/2;
+      return `<text x="${mx}" y="${my+dy}" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">${w}</text>`;}
+    $('#l8net').innerHTML=`<div class="svgwrap"><svg viewBox="0 0 ${W} ${H+30}">
+      ${edge('x1','h1',1,x1>0)}${edge('x1','h2',1,x1>0)}${edge('x2','h1',1,x2>0)}${edge('x2','h2',1,x2>0)}
+      ${edge('h1','y',1,r.h1>0)}${edge('h2','y',-2,r.h2>0)}
+      ${eLbl('x1','h1','1',-8)}${eLbl('x2','h2','1',16)}${eLbl('h1','y','1',-8)}${eLbl('h2','y','−2',16)}
+      ${node('x1',x1,x1>0)}${node('x2',x2,x2>0)}${node('h1',r.h1,r.h1>0)}${node('h2',r.h2,r.h2>0)}${node('y',r.y,r.y>0)}
+      <text class="lbl" x="70" y="${H+12}" text-anchor="middle">input x</text>
+      <text class="lbl" x="280" y="${H+12}" text-anchor="middle">hidden h · ReLU</text>
+      <text class="lbl" x="470" y="${H+12}" text-anchor="middle">output y</text>
+      <text style="font-size:10px;fill:var(--muted)" x="175" y="34" text-anchor="middle">all four input→hidden weights = 1</text>
+      <text style="font-size:10px;fill:var(--bias)" x="175" y="48" text-anchor="middle">bias: 0 for h₁,  −1 for h₂</text>
+      </svg></div>`;
+    const ok = r.y === (x1^x2);
+    $('#l8work').innerHTML=`<table class="tbl" style="margin-top:6px">
+      <tr><th>step</th><th>arithmetic</th><th>value</th></tr>
+      <tr><td>z(h₁)</td><td>${x1} + ${x2} + 0</td><td>${fmt(r.z1,1)}</td></tr>
+      <tr><td>h₁ = ReLU</td><td>max(0, ${fmt(r.z1,1)})</td><td style="color:var(--neuron)">${fmt(r.h1,1)}</td></tr>
+      <tr><td>z(h₂)</td><td>${x1} + ${x2} − 1</td><td>${fmt(r.z2,1)}</td></tr>
+      <tr><td>h₂ = ReLU</td><td>max(0, ${fmt(r.z2,1)})</td><td style="color:var(--neuron)">${fmt(r.h2,1)}</td></tr>
+      <tr><td>z(y)</td><td>${fmt(r.h1,1)} − 2×${fmt(r.h2,1)}</td><td>${fmt(r.zy,1)}</td></tr>
+      <tr><td><b>y = ReLU</b></td><td>max(0, ${fmt(r.zy,1)})</td><td style="color:var(--fwd);font-weight:700">${fmt(r.y,1)}</td></tr>
+      </table>
+      <p style="font-family:var(--sans);font-size:13px;margin:12px 0 0;color:${ok?'var(--fwd)':'var(--back)'}">
+      XOR(${x1},${x2}) should be <b>${x1^x2}</b> — the network output <b>${fmt(r.y,1)}</b>. ${ok?'Correct.':'Mismatch.'}</p>`;
+  };
+  $$('#l8seg button').forEach(b=>b.onclick=()=>{
+    $$('#l8seg button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    cur=b.dataset.i.split(',').map(Number); drawNet();
+  });
+  drawNet();
+
+  /* morph */
+  const S=290,pad=46;
+  const inputPts=[[0,0,0],[0,1,1],[1,0,1],[1,1,0]];
+  const hidPts=inputPts.map(([a,b,t])=>{const r=compute(a,b);return [r.h1,r.h2,t];});
+  let t=0,anim=null;
+  const drawMorph=()=>{
+    const px=v=>pad+v*(S-2*pad)/2.3, py=v=>S-pad-v*(S-2*pad)/2.3;
+    let s=`<div class="svgwrap"><svg viewBox="0 0 ${S} ${S+6}">
+      <line class="axis" x1="${px(0)}" y1="${py(0)}" x2="${px(2.2)}" y2="${py(0)}"/>
+      <line class="axis" x1="${px(0)}" y1="${py(0)}" x2="${px(0)}" y2="${py(2.2)}"/>
+      <text class="lbl" x="${px(2.2)}" y="${py(0)+16}" text-anchor="end">${t<.5?'x₁':'h₁'}</text>
+      <text class="lbl" x="${px(0)-6}" y="${py(2.2)+4}" text-anchor="end">${t<.5?'x₂':'h₂'}</text>`;
+    if(t>0.92){ /* separating line in h-space: h1 - 2 h2 = 0.5 */
+      const f=h1=>(h1-0.5)/2;
+      s+=`<line x1="${px(0.5)}" y1="${py(f(0.5))}" x2="${px(2.2)}" y2="${py(f(2.2))}" stroke="var(--fwd)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    }
+    inputPts.forEach((p,i)=>{
+      const X=p[0]+(hidPts[i][0]-p[0])*t, Y=p[1]+(hidPts[i][1]-p[1])*t;
+      s+=`<circle cx="${px(X)}" cy="${py(Y)}" r="9" fill="${p[2]?'var(--ink)':'#fff'}" stroke="var(--ink)" stroke-width="2"/>`;
+    });
+    s+=`</svg></div>`;
+    $('#l8morph').innerHTML=`<div style="max-width:330px;margin:0 auto">${s}</div>`;
+  };
+  drawMorph();
+  $('#l8go').onclick=()=>{
+    if(anim) cancelAnimationFrame(anim);
+    const dir = t<0.5?1:-1; const t0=performance.now(), from=t, to=dir>0?1:0;
+    const step=(now)=>{
+      const k=clamp((now-t0)/1100,0,1), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      t=from+(to-from)*e; drawMorph();
+      $('#l8msg').textContent = t>0.9 ? "Hidden space h — [0,1] and [1,0] now sit on the same point, and one line separates the classes"
+                    : t<0.1 ? "Original input space x — no line can separate these" : "Transforming…";
+      if(k<1) anim=requestAnimationFrame(step);
+    };
+    anim=requestAnimationFrame(step);
+  };
+}});
+/* ---------- 9 ---------- */
+L({unit:"Feedforward networks", title:"The feedforward architecture", slides:"Slides 19–21",
+sub:"Layers, fully connected, no cycles.",
+html:`
+<div class="prose">
+<p>A <strong>feedforward network</strong> is a multilayer network in which the units are connected <strong>with no cycles</strong>: the outputs from units in each layer are passed to units in the next higher layer, and no outputs are passed back to lower layers.</p>
+<p>Perceptrons are purely linear, but modern networks are made of units with non-linearities. Feedforward networks are sometimes called <strong>multi-layer perceptrons (MLPs)</strong> — a technical misnomer, since the units are not perceptrons.</p>
+<p>Simple feedforward networks have three kinds of nodes: <strong>input units</strong>, <strong>hidden units</strong>, and <strong>output units</strong>. The input layer x is a vector of simple scalar values. The core of the network is the <strong>hidden layer h</strong>, formed of hidden units hᵢ, each a neural unit taking a weighted sum of its inputs and then applying a non-linearity.</p>
+<p>In the standard architecture each layer is <strong>fully connected</strong>: every unit takes as input the outputs from all the units in the previous layer, and there is a link between every pair of units in two adjacent layers.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Resize the network</h4><span class="hint">Note how fast the parameter count grows</span></div>
+  <div class="grid2">
+    <div id="l9net"></div>
+    <div><div id="l9ctl"></div><div id="l9info" style="margin-top:14px"></div></div>
+  </div>
+</div>
+<div class="callout"><span class="lab">Naming convention</span>
+<p>The input layer is <b>layer 0</b> and is usually not counted when enumerating layers. So the classic picture — input, one hidden layer, one output layer — is called a <b>2-layer network</b>, not a 3-layer one.</p></div>
+`,
+init(){
+  $('#l9ctl').innerHTML=slider("inputs n₀",2,8,1,5,v=>Math.round(v))
+                       +slider("hidden n₁",1,8,1,4,v=>Math.round(v))
+                       +slider("outputs n₂",1,5,1,3,v=>Math.round(v));
+  const draw=()=>{
+    const [n0,n1,n2]=readSliders($('#l9ctl'),v=>Math.round(v)).map(Math.round);
+    const W=330,H=250, cols=[[46,n0],[165,n1],[284,n2]];
+    const pos=cols.map(([x,n])=>Array.from({length:n},(_,i)=>[x,H/2+(i-(n-1)/2)*26]));
+    let s=`<div class="svgwrap"><svg viewBox="0 0 ${W} ${H+26}">`;
+    for(let l=0;l<2;l++) pos[l].forEach(a=>pos[l+1].forEach(b=>{
+      s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="var(--rule)" stroke-width=".9"/>`;}));
+    pos.forEach((layer,l)=>layer.forEach(([x,y])=>{
+      s+=`<circle cx="${x}" cy="${y}" r="9" fill="${l===1?'var(--neuron)':'#fff'}" stroke="${l===1?'var(--neuron)':'var(--ink)'}" stroke-width="1.6"/>`;}));
+    ["input x","hidden h","output y"].forEach((t,i)=>{
+      s+=`<text class="lbl" x="${cols[i][0]}" y="${H+16}" text-anchor="middle">${t}</text>`;});
+    s+=`<text class="lbl" x="${cols[0][0]}" y="14" text-anchor="middle">layer 0</text>
+        <text class="lbl" x="${cols[1][0]}" y="14" text-anchor="middle">layer 1</text>
+        <text class="lbl" x="${cols[2][0]}" y="14" text-anchor="middle">layer 2</text></svg></div>`;
+    $('#l9net').innerHTML=s;
+    const p = n1*n0 + n1 + n2*n1;
+    $('#l9info').innerHTML=`<table class="tbl">
+      <tr><th>part</th><th>shape</th><th>params</th></tr>
+      <tr><td>W</td><td>${n1} × ${n0}</td><td>${n1*n0}</td></tr>
+      <tr><td>b</td><td>${n1} × 1</td><td>${n1}</td></tr>
+      <tr><td>U</td><td>${n2} × ${n1}</td><td>${n2*n1}</td></tr>
+      <tr><td><b>total</b></td><td></td><td style="font-weight:700;color:var(--neuron)">${p}</td></tr></table>
+      <p style="font-family:var(--sans);font-size:12.5px;color:var(--muted);margin:12px 0 0">
+      Every edge you see is one learned number. A real network has millions of them, which is exactly why we will need backpropagation.</p>`;
+  };
+  bindSliders($('#l9ctl'),draw); draw();
+}});
+
+/* ---------- 10 ---------- */
+L({unit:"Feedforward networks", title:"h = σ(Wx + b), one matrix at a time", slides:"Slides 22–24",
+sub:"Three steps: multiply, add, squash.",
+html:`
+<div class="prose">
+<p>Each element <span class="inline">W<sub>ji</sub></span> of the weight matrix W represents the weight of the connection from the <em>i</em>th input unit xᵢ to the <em>j</em>th hidden unit h<sub>j</sub>. The advantage of using a single matrix W for the whole layer is that the hidden layer computation can be done very efficiently with <strong>simple matrix operations</strong>.</p>
+<p>In fact the computation has only <strong>three steps</strong>: multiplying the weight matrix by the input vector x, adding the bias vector b, and applying the activation function g.</p>
+</div>
+<div class="eq">h = σ(<span class="hl-w">W</span><span class="hl-x">x</span> + <span class="hl-b">b</span>)
+<small>Notice we are applying σ to a <em>vector</em> here, elementwise, whereas before it was applied to a scalar.</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Step through the matrix multiply</h4><span class="hint">One hidden unit at a time</span></div>
+  <div id="l10viz"></div>
+  <div class="btnrow"><button class="btn" id="l10step">▶ Next step</button><button class="btn ghost" id="l10reset">Reset</button><span class="hint" id="l10msg"></span></div>
+</div>
+<div class="prose">
+<h3 class="sec">Dimensions, precisely</h3>
+<p>Input layer is layer 0, with n₀ inputs, so <span class="inline">x ∈ ℝⁿ⁰</span>, a column vector of dimensionality [n₀, 1]. Hidden layer is layer 1 with dimensionality n₁, so <span class="inline">h ∈ ℝⁿ¹</span> and also <span class="inline">b ∈ ℝⁿ¹</span>. The weight matrix W therefore has dimensionality <span class="inline">W ∈ ℝ<sup>n₁×n₀</sup></span>.</p>
+</div>
+`,
+init(){
+  const Wm=[[0.4,-0.6,0.9],[ -0.2,0.8,0.1],[0.7,0.3,-0.5]];
+  const x=[1.0,0.5,-1.0], b=[0.1,-0.3,0.2];
+  let step=-1;
+  const render=()=>{
+    const rows=Wm.map((row,j)=>{
+      const dot=row.reduce((a,c,i)=>a+c*x[i],0), z=dot+b[j], h=sig(z);
+      const on = step>=j;
+      const cells=row.map((v,i)=>`<span style="display:inline-block;width:52px;text-align:right;color:${on?'var(--neuron)':'var(--muted)'}">${fmt(v,1)}</span>`).join('');
+      return `<tr style="opacity:${on?1:.35};transition:opacity .3s">
+        <td class="mono">h${j+1}</td>
+        <td class="mono" style="text-align:left">[${cells} ]</td>
+        <td>${on?fmt(dot,3):'—'}</td>
+        <td style="color:var(--bias)">${on?(b[j]>=0?'+':'')+fmt(b[j],1):'—'}</td>
+        <td>${on?fmt(z,3):'—'}</td>
+        <td style="color:var(--fwd);font-weight:700">${on?fmt(h,3):'—'}</td></tr>`;
+    }).join('');
+    $('#l10viz').innerHTML=`
+      <div class="mono" style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        x = [ ${x.map(v=>fmt(v,1)).join(', ')} ] &nbsp;&nbsp; activation = σ</div>
+      <table class="tbl"><tr><th>unit</th><th>row of W</th><th>W·x</th><th>+ b</th><th>z</th><th>h = σ(z)</th></tr>${rows}</table>`;
+    $('#l10msg').textContent = step<0?'Nothing computed yet':
+      step<3?`Row ${step+1} of W dotted with x, bias added, sigmoid applied.`:'Done — h is complete. All three rows ran independently, so in practice they run in parallel as one matrix multiply.';
+    $('#l10step').disabled = step>=3;
+  };
+  $('#l10step').onclick=()=>{step++;render();};
+  $('#l10reset').onclick=()=>{step=-1;render();};
+  render();
+}});
+
+/* ---------- 11 ---------- */
+L({unit:"Feedforward networks", title:"The output layer and softmax", slides:"Slides 25–29",
+sub:"Turning real numbers into a probability distribution.",
+html:`
+<div class="prose">
+<p>Like the hidden layer, the output layer has a weight matrix — call it <strong>U</strong>. Some models do not include a bias vector in the output layer, so we simplify by eliminating it here. The matrix is multiplied by its input vector h to produce the intermediate output <strong>z = Uh</strong>.</p>
+<p>But <strong>z cannot be the output of the classifier</strong>, since it is a vector of arbitrary real-valued numbers, while what we need for classification is a vector of <em>probabilities</em>. The <strong>softmax</strong> normalises a vector of reals into a distribution: every number lands between 0 and 1, and they sum to 1.</p>
+</div>
+<div class="eq">softmax(z<sub>i</sub>) = exp(z<sub>i</sub>) / Σ<sub>j=1..d</sub> exp(z<sub>j</sub>) &nbsp;&nbsp; 1 ≤ i ≤ d</div>
+<div class="panel">
+  <div class="panel-head"><h4>The exact vector from the lecture</h4><span class="live">live</span></div>
+  <div id="l11ctl"></div>
+  <div id="l11out" style="margin-top:14px"></div>
+  <div class="btnrow"><button class="btn ghost" id="l11reset">Restore slide values</button></div>
+</div>
+<div class="prose">
+<h3 class="sec">One output node or many</h3>
+<p>For a <strong>binary</strong> task like sentiment classification you might have a single output node, whose scalar value y is the probability of positive versus negative sentiment. For <strong>multinomial</strong> classification such as part-of-speech tagging you have one output node per tag, and the values of all output nodes must sum to one. The output layer is thus a vector y giving a <strong>probability distribution</strong> across the output nodes.</p>
+</div>
+<div class="callout"><span class="lab">The one-line summary of this whole unit</span>
+<p>A neural network classifier is <b>multinomial logistic regression run on features the network invented itself</b>. It differs in three ways: (a) many layers, so it is like layer after layer of logistic regression; (b) intermediate layers can use tanh or ReLU rather than only sigmoid; (c) rather than forming features by hand-written templates, the prior layers <b>induce the feature representations themselves</b>.</p></div>
+<div class="eq">h = σ(Wx + b) &nbsp;·&nbsp; z = Uh &nbsp;·&nbsp; y = softmax(z)
+<small>x ∈ ℝⁿ⁰ · h, b ∈ ℝⁿ¹ · W ∈ ℝ<sup>n₁×n₀</sup> · U ∈ ℝ<sup>n₂×n₁</sup> · y ∈ ℝⁿ²</small></div>
+`,
+init(){
+  const init=[0.6,1.1,-1.5,1.2,3.2,-1.1];
+  const mk=()=>{ $('#l11ctl').innerHTML=init.map((v,i)=>slider("z"+(i+1),-4,4,.1,v)).join(''); };
+  const draw=()=>{
+    const z=readSliders($('#l11ctl'),v=>fmt(v,1));
+    const ex=z.map(v=>Math.exp(v)), S=ex.reduce((a,c)=>a+c,0), p=ex.map(v=>v/S);
+    const mx=Math.max(...p);
+    $('#l11out').innerHTML=`<table class="tbl">
+      <tr><th>i</th><th>zᵢ</th><th>exp(zᵢ)</th><th>probability</th><th></th></tr>
+      ${z.map((v,i)=>`<tr><td>${i+1}</td><td>${fmt(v,1)}</td><td>${fmt(ex[i],3)}</td>
+        <td style="color:${p[i]===mx?'var(--fwd)':'var(--ink)'};font-weight:${p[i]===mx?700:400}">${fmt(p[i],4)}</td>
+        <td style="width:38%">${bar(p[i],mx,p[i]===mx?'var(--fwd)':'var(--neuron)')}</td></tr>`).join('')}
+      <tr><td colspan="3" style="text-align:left;color:var(--muted)">sum</td><td style="font-weight:700">${fmt(p.reduce((a,c)=>a+c,0),4)}</td><td></td></tr>
+      </table>
+      <p style="font-family:var(--sans);font-size:12.5px;color:var(--muted);margin:12px 0 0">
+      Softmax is winner-take-most: raise the largest logit a little and it soaks up probability from everything else, because exp grows so fast.</p>`;
+  };
+  mk(); bindSliders($('#l11ctl'),draw); draw();
+  $('#l11reset').onclick=()=>{mk();bindSliders($('#l11ctl'),draw);draw();};
+}});
+
+/* ---------- 12 ---------- */
+L({unit:"Networks for NLP", title:"A 2-layer sentiment classifier", slides:"Slide 30",
+sub:"Hand-built features going into a neural net.",
+html:`
+<div class="prose">
+<p>Let's begin with a simple <strong>2-layer sentiment classifier</strong>. This version still uses hand-engineered features, exactly the kind you would design for logistic regression — it just runs them through a hidden layer first.</p>
+</div>
+<div class="eq" style="text-align:left;padding-left:28px">
+x&nbsp;&nbsp;= [x₁, x₂, … x<sub>N</sub>]<br>
+h&nbsp;&nbsp;= σ(<span class="hl-w">W</span>x + <span class="hl-b">b</span>)<br>
+z&nbsp;&nbsp;= <span class="hl-w">U</span>h<br>
+ŷ&nbsp;&nbsp;= softmax(z)
+<small style="text-align:center">x is [n×1] · W is [d<sub>h</sub>×n] · h is [d<sub>h</sub>×1] · U is [3×d<sub>h</sub>] · y is [3×1]</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Three hand-built features → three sentiment classes</h4><span class="live">live</span></div>
+  <div class="grid2">
+    <div><div id="l12ctl"></div>
+      <p style="font-family:var(--sans);font-size:12px;color:var(--muted);margin-top:12px">
+      These are exactly the feature templates from the slide: a word count, a count of positive-lexicon words, and whether "no" appears.</p></div>
+    <div id="l12out"></div>
+  </div>
+</div>
+<div class="callout"><span class="lab">What is unsatisfying here</span>
+<p>Someone had to sit down and <b>invent</b> those three features, and pick a positive-word lexicon. That is the part deep learning wants to eliminate — which is exactly where the next lesson goes.</p></div>
+`,
+init(){
+  $('#l12ctl').innerHTML=slider("word count",0,10,1,3,v=>Math.round(v))
+    +slider("positive words",0,6,1,1,v=>Math.round(v))
+    +slider('count of "no"',0,3,1,0,v=>Math.round(v));
+  const W=[[0.9,1.6,-1.4],[-0.5,-0.3,1.9],[0.2,-0.4,-0.2],[0.6,0.9,-0.7]];
+  const b=[-1.2,-0.9,0.4,-1.4];
+  const U=[[1.4,-1.1,0.2,1.2],[-1.3,1.6,0.1,-1.0],[0.1,-0.2,1.1,0.0]];
+  const draw=()=>{
+    const x=readSliders($('#l12ctl'),v=>Math.round(v));
+    const xs=[x[0]/3,x[1],x[2]];
+    const h=W.map((r,j)=>sig(r.reduce((a,c,i)=>a+c*xs[i],0)+b[j]));
+    const z=U.map(r=>r.reduce((a,c,i)=>a+c*h[i],0));
+    const ex=z.map(Math.exp),S=ex.reduce((a,c)=>a+c,0),p=ex.map(v=>v/S);
+    const names=["p(+) positive","p(−) negative","p(neut) neutral"];
+    const mx=Math.max(...p), win=p.indexOf(mx);
+    $('#l12out').innerHTML=`
+      <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">hidden layer h (4 units)</div>
+      <div style="display:flex;gap:6px;margin-bottom:16px">${h.map(v=>`
+        <div style="flex:1;text-align:center">
+          <div style="height:44px;display:flex;align-items:flex-end"><div style="width:100%;height:${(v*100).toFixed(0)}%;background:var(--neuron);border-radius:3px;transition:height .25s"></div></div>
+          <div class="mono" style="font-size:10px;color:var(--muted);margin-top:4px">${fmt(v,2)}</div></div>`).join('')}</div>
+      <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">output ŷ = softmax(z)</div>
+      ${p.map((v,i)=>`<div style="margin-bottom:9px">
+        <div style="display:flex;justify-content:space-between;font-family:var(--sans);font-size:12px;margin-bottom:3px">
+          <span style="font-weight:${i===win?700:400}">${names[i]}</span><span class="mono">${fmt(v,3)}</span></div>
+        ${bar(v,1,i===win?'var(--fwd)':'var(--rule)')}</div>`).join('')}`;
+  };
+  bindSliders($('#l12ctl'),draw); draw();
+}});
+/* ---------- 13 ---------- */
+L({unit:"Networks for NLP", title:"Pooled embeddings replace hand features", slides:"Slides 31–33",
+sub:"Let the network learn what matters.",
+html:`
+<div class="prose">
+<p>Most neural NLP applications do something different. Instead of using hand-built, human-engineered features as input, we draw on deep learning's ability to <strong>learn features from the data</strong> by representing words as <strong>embeddings</strong> — like word2vec or GloVe.</p>
+<p>One simple baseline is to apply a <strong>pooling function</strong> to the embeddings of all the words in the input. For a text with n tokens w₁ … wₙ we can turn the n embeddings e(w₁) … e(wₙ), each of dimensionality d, into a single embedding also of dimensionality d, by summing them, or by taking their <strong>mean</strong>.</p>
+</div>
+<div class="eq">x<sub>mean</sub> = (1/n) Σ<sub>i=1..n</sub> e(w<sub>i</sub>)
+<small>then, exactly as before: h = σ(Wx + b) · z = Uh · ŷ = softmax(z)</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Pool the input words</h4><span class="hint">Toggle words in and out of the sentence</span></div>
+  <div class="btnrow" style="margin:0 0 14px" id="l13words"></div>
+  <div id="l13viz"></div>
+  <div class="btnrow"><div class="seg" id="l13seg"><button class="on" data-p="mean">mean pooling</button><button data-p="sum">sum pooling</button><button data-p="max">max pooling</button></div></div>
+</div>
+<div class="callout"><span class="lab">Why pooling at all</span>
+<p>Sentences have different lengths, but W has a fixed shape. Pooling squeezes any number of word vectors down to <b>one vector of size d</b>, so the same classifier works on a 3-word review and a 30-word one. The cost is word order — pooling throws it away. That limitation is the reason RNNs and Transformers exist.</p></div>
+`,
+init(){
+  const vocab={dessert:[0.8,0.2,-0.4,0.6],was:[0.05,-0.1,0.1,0.0],great:[0.9,0.7,0.3,-0.2],
+    not:[-0.3,-0.8,0.2,0.1],terrible:[-0.9,-0.6,-0.5,0.4]};
+  const active=new Set(["dessert","was","great"]);
+  let mode='mean';
+  $('#l13words').innerHTML=Object.keys(vocab).map(w=>
+    `<button class="btn ${active.has(w)?'':'ghost'}" data-w="${w}">${w}</button>`).join('');
+  const draw=()=>{
+    const words=Object.keys(vocab).filter(w=>active.has(w));
+    const d=4; let pooled=Array(d).fill(mode==='max'?-Infinity:0);
+    words.forEach(w=>vocab[w].forEach((v,i)=>{ pooled[i]= mode==='max'?Math.max(pooled[i],v):pooled[i]+v; }));
+    if(mode==='mean'&&words.length) pooled=pooled.map(v=>v/words.length);
+    if(!words.length) pooled=Array(d).fill(0);
+    const cell=(v,c)=>`<div style="width:34px;height:26px;display:flex;align-items:center;justify-content:center;
+      border-radius:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;
+      background:${v>=0?`rgba(14,124,114,${clamp(Math.abs(v),0,1)*0.75+0.06})`:`rgba(169,52,117,${clamp(Math.abs(v),0,1)*0.75+0.06})`};
+      color:${Math.abs(v)>0.5?'#fff':'var(--ink)'}">${fmt(v,1)}</div>`;
+    $('#l13viz').innerHTML=`
+      ${words.length?words.map(w=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+        <div style="width:74px;font-family:var(--mono);font-size:12px;text-align:right">${w}</div>
+        <div style="display:flex;gap:4px">${vocab[w].map(v=>cell(v)).join('')}</div>
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;color:var(--muted)">e("${w}")</div>
+      </div>`).join(''):'<p style="font-family:var(--sans);font-size:13px;color:var(--muted)">Add a word.</p>'}
+      <div style="height:1px;background:var(--rule);margin:14px 0 12px"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:74px;font-family:var(--sans);font-size:11.5px;font-weight:700;text-align:right">x (pooled)</div>
+        <div style="display:flex;gap:4px">${pooled.map(v=>cell(v)).join('')}</div>
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;color:var(--muted)">[d × 1] — always this size, whatever n is</div>
+      </div>`;
+  };
+  $$('#l13words button').forEach(b=>b.onclick=()=>{
+    const w=b.dataset.w; active.has(w)?active.delete(w):active.add(w);
+    b.classList.toggle('ghost'); draw();
+  });
+  $$('#l13seg button').forEach(b=>b.onclick=()=>{
+    $$('#l13seg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); mode=b.dataset.p; draw();});
+  draw();
+}});
+
+/* ---------- 14 ---------- */
+L({unit:"Neural language models", title:"Neural LMs vs n-gram LMs", slides:"Slides 34–36",
+sub:"Predicting the next word, with a network.",
+html:`
+<div class="prose">
+<p>As our second application of feedforward networks, consider <strong>language modeling</strong>: predicting upcoming words from prior word context. Neural language modeling is an important NLP task in itself, and it plays a role in machine translation, summarization, speech recognition, grammar correction, and dialogue.</p>
+<p>We will describe the simple feedforward neural LM first introduced by <strong>Bengio et al. (2003)</strong>. Modern models use more powerful architectures — recurrent nets, transformers — but the feedforward LM introduces most of the important concepts.</p>
+<p>A feedforward neural LM takes as input at time <em>t</em> a representation of some number of previous words (w<sub>t−1</sub>, w<sub>t−2</sub>, …) and outputs a probability distribution over possible next words. Like the n-gram LM, it approximates the full-context probability using the previous N−1 words:</p>
+</div>
+<div class="eq">P(w<sub>t</sub> | w<sub>1:t−1</sub>) ≈ P(w<sub>t</sub> | w<sub>t−N+1</sub>, …, w<sub>t−1</sub>)</div>
+<div class="panel">
+  <div class="panel-head"><h4>Trade-offs, side by side</h4><span class="hint">From the lecture</span></div>
+  <table class="tbl">
+    <tr><th>dimension</th><th style="text-align:left">n-gram LM</th><th style="text-align:left">neural LM</th></tr>
+    <tr><td style="font-family:var(--sans)">history length</td><td style="text-align:left">short — sparsity bites fast</td><td style="text-align:left;color:var(--fwd)">much longer histories</td></tr>
+    <tr><td style="font-family:var(--sans)">similar words</td><td style="text-align:left">no sharing between them</td><td style="text-align:left;color:var(--fwd)">generalises over similar contexts</td></tr>
+    <tr><td style="font-family:var(--sans)">accuracy</td><td style="text-align:left">lower</td><td style="text-align:left;color:var(--fwd)">more accurate at word prediction</td></tr>
+    <tr><td style="font-family:var(--sans)">complexity</td><td style="text-align:left;color:var(--fwd)">simple</td><td style="text-align:left;color:var(--back)">much more complex</td></tr>
+    <tr><td style="font-family:var(--sans)">training cost</td><td style="text-align:left;color:var(--fwd)">fast, cheap</td><td style="text-align:left;color:var(--back)">slow, energy-hungry</td></tr>
+    <tr><td style="font-family:var(--sans)">interpretability</td><td style="text-align:left;color:var(--fwd)">you can read the counts</td><td style="text-align:left;color:var(--back)">much less interpretable</td></tr>
+  </table>
+</div>
+<div class="callout"><span class="lab">Not a clean win</span>
+<p>For many tasks — especially smaller ones — <b>an n-gram language model is still the right tool</b>. Bigger is not automatically better when you count training time, energy, and the ability to debug what the model did.</p></div>
+`,
+init(){}});
+
+/* ---------- 15 ---------- */
+L({unit:"Neural language models", title:"One-hot vectors and the embedding lookup", slides:"Slides 37–38",
+sub:"Multiplying by E is just picking a column.",
+html:`
+<div class="prose">
+<p>We first represent each of the N previous words as a <strong>one-hot vector</strong> of length |V|. A one-hot vector has <strong>one element equal to 1</strong> — in the dimension corresponding to that word's index in the vocabulary — while all other elements are 0.</p>
+<p>The embedding weight matrix <strong>E</strong> has a column for each word, each a column vector of d dimensions, so E has dimensionality <strong>d × |V|</strong>. Multiplying E by a one-hot vector that has only one non-zero element x<sub>i</sub> = 1 simply <strong>selects out the relevant column</strong> for word i, resulting in the embedding for that word.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Pick a word and watch the selection happen</h4><span class="hint">The multiply is a lookup in disguise</span></div>
+  <div class="btnrow" style="margin:0 0 16px" id="l15words"></div>
+  <div id="l15viz"></div>
+</div>
+<div class="callout"><span class="lab">The practical consequence</span>
+<p>No real system performs this matrix multiply. Since every product except one is zero, implementations <b>index straight into E</b>. But writing it as E·x keeps the maths uniform, which matters when you differentiate it during training.</p></div>
+`,
+init(){
+  const V=["and","thanks","for","all","the","fish","toothpaste"];
+  const d=4;
+  const E=V.map((w,i)=>Array.from({length:d},(_,k)=>Math.round((Math.sin(i*3.1+k*1.7)*0.9)*10)/10));
+  let sel=4;
+  $('#l15words').innerHTML=V.map((w,i)=>`<button class="btn ${i===sel?'':'ghost'}" data-i="${i}">${w}</button>`).join('');
+  const draw=()=>{
+    const cellsz=30;
+    const onehot=V.map((_,i)=>i===sel?1:0);
+    const emb=E[sel];
+    const box=(v,hot)=>`<div style="width:${cellsz}px;height:${cellsz}px;display:flex;align-items:center;justify-content:center;
+      border:1px solid ${hot?'var(--neuron)':'var(--rule)'};border-radius:4px;font-family:var(--mono);font-size:10.5px;
+      background:${hot?'var(--neuron)':'#fff'};color:${hot?'#fff':'var(--muted)'};font-weight:${hot?700:400};transition:all .25s">${v}</div>`;
+    $('#l15viz').innerHTML=`<div class="svgwrap"><div style="display:flex;gap:22px;align-items:flex-start;min-width:520px">
+      <div>
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">E &nbsp; [d × |V|]</div>
+        <div style="display:flex;gap:3px">${V.map((w,i)=>`
+          <div style="display:flex;flex-direction:column;gap:3px;padding:3px;border-radius:6px;background:${i===sel?'var(--fwd-soft)':'transparent'};transition:background .25s">
+            ${E[i].map(v=>`<div style="width:${cellsz}px;height:${cellsz-6}px;display:flex;align-items:center;justify-content:center;
+              border-radius:4px;font-family:var(--mono);font-size:10px;
+              background:${i===sel?'var(--fwd)':'var(--rule-soft)'};color:${i===sel?'#fff':'var(--muted)'};transition:all .25s">${fmt(v,1)}</div>`).join('')}
+            <div class="lbl" style="font-family:var(--sans);font-size:8.5px;text-align:center;color:${i===sel?'var(--fwd)':'var(--muted)'};writing-mode:vertical-rl;height:52px;margin:2px auto 0">${w}</div>
+          </div>`).join('')}</div>
+      </div>
+      <div style="padding-top:26px;font-size:22px;color:var(--muted)">×</div>
+      <div>
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">one-hot x</div>
+        <div style="display:flex;flex-direction:column;gap:3px">${onehot.map(v=>box(v,v===1)).join('')}</div>
+      </div>
+      <div style="padding-top:26px;font-size:22px;color:var(--muted)">=</div>
+      <div>
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--fwd);margin-bottom:7px">e(${V[sel]}) &nbsp;[d × 1]</div>
+        <div style="display:flex;flex-direction:column;gap:3px">${emb.map(v=>`
+          <div style="width:${cellsz}px;height:${cellsz-6}px;display:flex;align-items:center;justify-content:center;border-radius:4px;
+            font-family:var(--mono);font-size:10px;background:var(--fwd);color:#fff">${fmt(v,1)}</div>`).join('')}</div>
+      </div></div></div>`;
+  };
+  $$('#l15words button').forEach(b=>b.onclick=()=>{
+    sel=+b.dataset.i; $$('#l15words button').forEach(x=>x.classList.add('ghost')); b.classList.remove('ghost'); draw();});
+  draw();
+}});
+
+/* ---------- 16 ---------- */
+L({unit:"Neural language models", title:"Forward inference in the neural LM", slides:"Slide 39",
+sub:"From three context words to a distribution over the whole vocabulary.",
+html:`
+<div class="prose">
+<p><strong>Forward inference</strong> is the task, given an input, of running a forward pass on the network to produce a probability distribution over possible outputs — in this case, next words.</p>
+<p>At each timestep t the network computes a <strong>d-dimensional embedding</strong> for each context word by multiplying its one-hot vector by the embedding matrix E, then <strong>concatenates</strong> the 3 resulting embeddings to get the embedding layer <strong>e</strong>. From there it is the ordinary feedforward machinery.</p>
+</div>
+<div class="eq" style="text-align:left;padding-left:28px">
+e&nbsp;&nbsp;= [E<span class="hl-x">x</span><sub>t−3</sub>; E<span class="hl-x">x</span><sub>t−2</sub>; E<span class="hl-x">x</span><sub>t−1</sub>]<br>
+h&nbsp;&nbsp;= σ(<span class="hl-w">W</span>e + <span class="hl-b">b</span>)<br>
+z&nbsp;&nbsp;= <span class="hl-w">U</span>h<br>
+ŷ&nbsp;&nbsp;= softmax(z)
+<small style="text-align:center">e is [3d×1] · W is [d<sub>h</sub>×3d] · h is [d<sub>h</sub>×1] · U is [|V|×d<sub>h</sub>] · ŷ is [|V|×1]</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Run the sliding window</h4><span class="hint">Advance one word at a time</span></div>
+  <div id="l16sent"></div>
+  <div id="l16pred" style="margin-top:16px"></div>
+  <div class="btnrow"><button class="btn" id="l16next">▶ Predict next word</button><button class="btn ghost" id="l16rst">Reset</button></div>
+</div>
+<div class="callout"><span class="lab">Notice the output size</span>
+<p>The output layer has <b>one node per vocabulary word</b>. With a realistic |V| of 50,000, U alone is a 50,000 × d<sub>h</sub> matrix, and the softmax must normalise over 50,000 numbers for every single prediction. That cost is the practical bottleneck of this architecture.</p></div>
+`,
+init(){
+  const sent=["...","and","thanks","for","all","the","fish"];
+  const dists={
+    "for all the":[["fish",.41],["best",.18],["world",.11],["time",.09],["others",.06],["zebra",.001]],
+    "thanks for all":[["the",.62],["your",.14],["of",.07],["that",.05],["this",.04],["zebra",.001]],
+    "and thanks for":[["all",.38],["the",.21],["your",.16],["everything",.08],["coming",.05],["zebra",.001]]
+  };
+  let pos=3; /* index of last context word */
+  const draw=()=>{
+    const ctx=sent.slice(Math.max(1,pos-2),pos+1);
+    const key=ctx.join(" ");
+    const dist=dists[key]||[["…",.3],["…",.2],["…",.15],["…",.1],["…",.08],["zebra",.001]];
+    $('#l16sent').innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      ${sent.map((w,i)=>{
+        const isCtx=i>=pos-2&&i<=pos;
+        return `<div style="padding:7px 12px;border-radius:7px;font-family:var(--mono);font-size:13px;
+          border:1.5px solid ${isCtx?'var(--fwd)':'var(--rule)'};background:${isCtx?'var(--fwd-soft)':'#fff'};
+          color:${i===0?'var(--muted)':'var(--ink)'};transition:all .25s">${w}</div>`;}).join('')}
+      <div style="padding:7px 12px;border-radius:7px;font-family:var(--mono);font-size:13px;border:1.5px dashed var(--neuron);color:var(--neuron)">?</div>
+      </div>
+      <p style="font-family:var(--sans);font-size:12px;color:var(--muted);margin:10px 0 0">
+      Context window (N−1 = 3 words): <b class="mono">${ctx.join(" ")}</b> → one-hot → E → concatenate → h → z → softmax</p>`;
+    $('#l16pred').innerHTML=`
+      <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:9px">ŷ — distribution over the vocabulary</div>
+      ${dist.map((p,i)=>`<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-family:var(--sans);font-size:12.5px;margin-bottom:3px">
+          <span class="mono" style="font-weight:${i===0?700:400}">p(${p[0]} | ${ctx.join(" ")})</span>
+          <span class="mono">${fmt(p[1],3)}</span></div>
+        ${bar(p[1],dist[0][1],i===0?'var(--fwd)':'var(--rule)')}</div>`).join('')}`;
+  };
+  $('#l16next').onclick=()=>{ if(pos<sent.length-1){pos++;draw();} $('#l16next').disabled=pos>=sent.length-1; };
+  $('#l16rst').onclick=()=>{ pos=3; $('#l16next').disabled=false; draw(); };
+  draw();
+}});
+/* ---------- 17 ---------- */
+L({unit:"Training", title:"Loss and gradient descent", slides:"Slides 40–42",
+sub:"How the network knows it is wrong, and which way to move.",
+html:`
+<div class="prose">
+<p>A feedforward neural net is an instance of <strong>supervised machine learning</strong>: we know the correct output y for each observation x. What the system produces is <strong>ŷ</strong>, its estimate of the true y. The goal of training is to learn parameters W<sup>[i]</sup> and b<sup>[i]</sup> for each layer i that make ŷ as close as possible to the true y.</p>
+<p><strong>First</strong>, we need a <strong>loss function</strong> that models the distance between the system output and the gold output. It is common to use the loss function used for logistic regression, the <strong>cross-entropy</strong> loss.</p>
+<p><strong>Second</strong>, to find the parameters that minimise this loss, we use the <strong>gradient descent</strong> optimization algorithm.</p>
+<p><strong>Third</strong>, gradient descent requires knowing the <strong>gradient</strong> of the loss function — the vector containing the partial derivative of the loss with respect to each of the parameters.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Gradient descent, one step at a time</h4><span class="hint">Watch the learning rate matter</span></div>
+  <div id="l17plot"></div>
+  <div id="l17ctl"></div>
+  <div class="btnrow"><button class="btn" id="l17step">▶ One step</button><button class="btn" id="l17run">▶▶ Run 40 steps</button><button class="btn ghost" id="l17rst">Reset</button><span class="hint" id="l17msg"></span></div>
+</div>
+<div class="callout warn"><span class="lab">The problem this creates</span>
+<p>In logistic regression, for each observation we could <b>directly compute</b> the derivative of the loss with respect to an individual w or b. But for a neural network with millions of parameters across many layers, it is much harder to see how to compute the partial derivative of some weight in <b>layer 1</b> when the loss is attached to some much later layer. How do we partial out the loss over all those intermediate layers?</p></div>
+`,
+init(){
+  const loss=w=>0.55*Math.pow(w-1.1,2)+0.28*Math.sin(3.2*w)+0.7;
+  const grad=w=>1.1*(w-1.1)+0.28*3.2*Math.cos(3.2*w);
+  let w=-2.1, hist=[w], timer=null;
+  $('#l17ctl').innerHTML=slider("learning rate η",0.01,1.2,.01,0.18);
+  const W=560,H=210,x0=-3,x1=3.4;
+  const draw=()=>{
+    const ys=[];for(let i=0;i<=200;i++)ys.push(loss(x0+(x1-x0)*i/200));
+    const y0=Math.min(...ys)-.2,y1=Math.max(...ys)+.2;
+    const px=v=>(v-x0)/(x1-x0)*W, py=v=>H-(v-y0)/(y1-y0)*H;
+    let s=`<div class="svgwrap"><svg viewBox="-16 -12 ${W+40} ${H+38}">
+      <path d="${curve(loss,x0,x1,y0,y1,W,H)}" fill="none" stroke="var(--rule)" stroke-width="2.4"/>`;
+    hist.slice(-40).forEach((v,i,a)=>{
+      s+=`<circle cx="${px(v)}" cy="${py(loss(v))}" r="3" fill="var(--back)" opacity="${.15+.85*i/Math.max(1,a.length-1)}"/>`;});
+    const g=grad(w);
+    s+=`<line x1="${px(w-.55)}" y1="${py(loss(w)-g*.55)}" x2="${px(w+.55)}" y2="${py(loss(w)+g*.55)}" stroke="var(--fwd)" stroke-width="2"/>`;
+    s+=`<circle cx="${px(w)}" cy="${py(loss(w))}" r="8" fill="var(--neuron)" stroke="#fff" stroke-width="2"/>`;
+    s+=`<text class="lbl" x="${W}" y="${H+26}" text-anchor="end">parameter value w</text>
+        <text class="lbl" x="0" y="-2">loss</text></svg></div>`;
+    $('#l17plot').innerHTML=s;
+    $('#l17msg').textContent=`w = ${fmt(w,3)} · loss = ${fmt(loss(w),4)} · gradient = ${fmt(g,3)}`;
+  };
+  const step=()=>{ const eta=readSliders($('#l17ctl'))[0]; w=clamp(w-eta*grad(w),-3,3.4); hist.push(w); draw(); };
+  $('#l17step').onclick=step;
+  $('#l17run').onclick=()=>{ if(timer)clearInterval(timer); let n=0; timer=setInterval(()=>{step(); if(++n>=40)clearInterval(timer);},70); };
+  $('#l17rst').onclick=()=>{ if(timer)clearInterval(timer); w=-2.1; hist=[w]; draw(); };
+  bindSliders($('#l17ctl'),draw); draw();
+}});
+
+/* ---------- 18 ---------- */
+L({unit:"Backpropagation", title:"What backpropagation is for", slides:"Slides 42–43",
+sub:"Assigning blame backwards through the layers.",
+html:`
+<div class="prose">
+<p>The answer to that question is the algorithm called <strong>error backpropagation</strong>, or backward differentiation.</p>
+<p>The goal of backpropagation is to optimize the weights so that the network can learn how to correctly map arbitrary inputs to outputs.</p>
+<p>The most basic method of training a network is <strong>trial and error</strong>: if the network is not behaving the way it should, change the weighting of a random link by a random amount; if accuracy declines, undo the change and make a different one. It takes time, but the trial and error method does produce results.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Random search vs. following the gradient</h4><span class="hint">Same budget of attempts</span></div>
+  <div id="l18race"></div>
+  <div class="btnrow"><button class="btn" id="l18go">▶ Race them</button><span class="hint" id="l18msg">Both start at the same error</span></div>
+</div>
+<div class="callout"><span class="lab">Why backprop wins</span>
+<p>Trial and error asks "did that help?" <b>after</b> the fact — one bit of information per attempt. Backprop uses the chain rule to compute, in a single backward sweep, <b>the exact direction and size of the change that helps for every weight at once</b>. Same amount of arithmetic, vastly more information.</p></div>
+`,
+init(){
+  const W=560,H=180;
+  let running=false;
+  const draw=(a,b,n)=>{
+    const maxN=60, y0=0, y1=0.35;
+    const px=i=>i/maxN*W, py=v=>H-clamp(v,y0,y1)/(y1-y0)*H;
+    const path=(arr,c)=>arr.map((v,i)=>(i?'L':'M')+px(i)+' '+py(v)).join(' ');
+    $('#l18race').innerHTML=`<div class="svgwrap"><svg viewBox="-34 -14 ${W+60} ${H+40}">
+      <line class="axis" x1="0" y1="${H}" x2="${W}" y2="${H}"/>
+      <line class="axis" x1="0" y1="0" x2="0" y2="${H}"/>
+      <path d="${path(a,'')}" fill="none" stroke="var(--back)" stroke-width="2.2"/>
+      <path d="${path(b,'')}" fill="none" stroke="var(--fwd)" stroke-width="2.2"/>
+      <text class="lbl" x="${W}" y="${H+26}" text-anchor="end">attempts</text>
+      <text class="lbl" x="-8" y="10" text-anchor="end">error</text>
+      <text style="font-size:11px;fill:var(--back)" x="${px(a.length-1)+6}" y="${py(a[a.length-1])+4}">trial &amp; error</text>
+      <text style="font-size:11px;fill:var(--fwd)" x="${px(b.length-1)+6}" y="${py(b[b.length-1])+4}">backprop</text>
+      </svg></div>`;
+  };
+  const run=()=>{
+    if(running)return; running=true;
+    let ra=[0.3], rb=[0.3], i=0;
+    const t=setInterval(()=>{
+      const last=ra[ra.length-1];
+      const trial=last+(Math.random()-0.5)*0.06;
+      ra.push(Math.min(last, Math.max(0.02,trial)));
+      rb.push(Math.max(0.004, rb[rb.length-1]*0.9 - 0.0008));
+      draw(ra,rb,i);
+      $('#l18msg').textContent=`attempt ${i+1} — trial & error: ${fmt(ra[ra.length-1],4)} · backprop: ${fmt(rb[rb.length-1],4)}`;
+      if(++i>=60){clearInterval(t);running=false;}
+    },45);
+  };
+  draw([0.3],[0.3],0);
+  $('#l18go').onclick=run;
+}});
+
+/* ---------- 19 ---------- */
+L({unit:"Backpropagation", title:"Forward pass, with real numbers", slides:"Slides 44–48",
+sub:"The 2-2-2 network everyone learns backprop on.",
+html:`
+<div class="prose">
+<p>The worked example uses a small network with <strong>two inputs, two hidden neurons, two output neurons, and two biases</strong>. Inputs are <span class="inline">i₁ = 0.05, i₂ = 0.10</span> and the targets are <span class="inline">0.01</span> and <span class="inline">0.99</span>. Every neuron uses the sigmoid.</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>The network</h4><span class="hint">Advance the pass step by step</span></div>
+  <div id="l19net"></div>
+  <div class="btnrow"><button class="btn" id="l19step">▶ Next step</button><button class="btn ghost" id="l19rst">Reset</button></div>
+  <div id="l19work" style="margin-top:14px"></div>
+</div>
+<div class="callout"><span class="lab">Total error</span>
+<p>Using squared error, E<sub>total</sub> = Σ ½(target − output)². The two halves are <b>0.274811083</b> for o₁ and <b>0.023560026</b> for o₂, giving <b>E<sub>total</sub> = 0.298371109</b>. That number is the thing backprop is about to shrink.</p></div>
+`,
+init(){
+  const P={i1:.05,i2:.10,w1:.15,w2:.20,w3:.25,w4:.30,b1:.35,w5:.40,w6:.45,w7:.50,w8:.55,b2:.60,t1:.01,t2:.99};
+  const neth1=P.w1*P.i1+P.w2*P.i2+P.b1, outh1=sig(neth1);
+  const neth2=P.w3*P.i1+P.w4*P.i2+P.b1, outh2=sig(neth2);
+  const neto1=P.w5*outh1+P.w6*outh2+P.b2, outo1=sig(neto1);
+  const neto2=P.w7*outh1+P.w8*outh2+P.b2, outo2=sig(neto2);
+  const e1=0.5*Math.pow(P.t1-outo1,2), e2=0.5*Math.pow(P.t2-outo2,2);
+  const steps=[
+    {t:"Nothing computed yet. The network holds its initial weights.",rows:[]},
+    {t:"Node h₁ — weighted sum, then sigmoid.",rows:[
+      ["net<sub>h1</sub>","w₁·i₁ + w₂·i₂ + b₁·1 = 0.15×0.05 + 0.20×0.10 + 0.35×1",fmt(neth1,4)],
+      ["out<sub>h1</sub>","1 / (1 + e^−0.3775)",fmt(outh1,6)]]},
+    {t:"Node h₂ — same recipe, different weights.",rows:[
+      ["net<sub>h2</sub>","w₃·i₁ + w₄·i₂ + b₁·1 = 0.25×0.05 + 0.30×0.10 + 0.35×1",fmt(neth2,4)],
+      ["out<sub>h2</sub>","1 / (1 + e^−0.3925)",fmt(outh2,6)]]},
+    {t:"Node o₁ — the hidden outputs are now the inputs.",rows:[
+      ["net<sub>o1</sub>","w₅·out<sub>h1</sub> + w₆·out<sub>h2</sub> + b₂·1",fmt(neto1,6)],
+      ["out<sub>o1</sub>","1 / (1 + e^−1.105906)",fmt(outo1,6)]]},
+    {t:"Node o₂.",rows:[
+      ["net<sub>o2</sub>","w₇·out<sub>h1</sub> + w₈·out<sub>h2</sub> + b₂·1",fmt(neto2,6)],
+      ["out<sub>o2</sub>","1 / (1 + e^−1.224921)",fmt(outo2,6)]]},
+    {t:"Total error. Targets were 0.01 and 0.99 — we are a long way off.",rows:[
+      ["E<sub>o1</sub>","½(0.01 − "+fmt(outo1,6)+")²",fmt(e1,9)],
+      ["E<sub>o2</sub>","½(0.99 − "+fmt(outo2,6)+")²",fmt(e2,9)],
+      ["<b>E<sub>total</sub></b>","E<sub>o1</sub> + E<sub>o2</sub>","<b>"+fmt(e1+e2,9)+"</b>"]]}
+  ];
+  let s=0;
+  const drawNet=()=>{
+    const W=580,H=230;
+    const N={i1:[58,72],i2:[58,158],h1:[240,72],h2:[240,158],o1:[430,72],o2:[430,158]};
+    const vals={i1:P.i1,i2:P.i2,h1:outh1,h2:outh2,o1:outo1,o2:outo2};
+    const lit={i1:s>=1,i2:s>=1,h1:s>=1,h2:s>=2,o1:s>=3,o2:s>=4};
+    const colr={i1:'#9DBF9E',i2:'#9DBF9E',h1:'#7FA8D9',h2:'#7FA8D9',o1:'#7FA8D9',o2:'#7FA8D9'};
+    const edge=(a,b,lab,live,dy)=>{
+      const A=N[a],B=N[b];
+      return `<line x1="${A[0]+22}" y1="${A[1]}" x2="${B[0]-22}" y2="${B[1]}" stroke="${live?'var(--fwd)':'var(--rule)'}" stroke-width="${live?2:1.2}"/>
+       <text x="${(A[0]+B[0])/2}" y="${(A[1]+B[1])/2+dy}" text-anchor="middle" style="font-size:10px;fill:${live?'var(--fwd)':'var(--muted)'}">${lab}</text>`;};
+    const node=(k,lab)=>`<ellipse cx="${N[k][0]}" cy="${N[k][1]}" rx="24" ry="18"
+      fill="${lit[k]?colr[k]:'#fff'}" stroke="var(--ink)" stroke-width="1.4"/>
+      <text x="${N[k][0]}" y="${N[k][1]+4}" text-anchor="middle" style="font-weight:700;font-size:11px">${lab}</text>
+      ${lit[k]?`<text x="${N[k][0]}" y="${N[k][1]-26}" text-anchor="middle" style="font-size:10px;fill:var(--fwd);font-weight:700">${fmt(vals[k],6)}</text>`:''}`;
+    $('#l19net').innerHTML=`<div class="svgwrap"><svg viewBox="0 0 ${W} ${H+34}">
+      ${edge('i1','h1','w₁ .15',s>=1,-6)}${edge('i1','h2','w₂ .20',s>=2,-6)}
+      ${edge('i2','h1','w₃ .25',s>=1,16)}${edge('i2','h2','w₄ .30',s>=2,16)}
+      ${edge('h1','o1','w₅ .40',s>=3,-6)}${edge('h1','o2','w₆ .45',s>=4,-6)}
+      ${edge('h2','o1','w₇ .50',s>=3,16)}${edge('h2','o2','w₈ .55',s>=4,16)}
+      ${node('i1','i1')}${node('i2','i2')}${node('h1','h1')}${node('h2','h2')}${node('o1','o1')}${node('o2','o2')}
+      <circle cx="90" cy="212" r="12" fill="#E6E6E6" stroke="var(--rule)"/><text x="90" y="216" text-anchor="middle" style="font-size:10px">1</text>
+      <text x="112" y="216" style="font-size:10px;fill:var(--bias)">b₁ .35</text>
+      <circle cx="270" cy="212" r="12" fill="#E6E6E6" stroke="var(--rule)"/><text x="270" y="216" text-anchor="middle" style="font-size:10px">1</text>
+      <text x="292" y="216" style="font-size:10px;fill:var(--bias)">b₂ .60</text>
+      <text x="${N.i1[0]-34}" y="${N.i1[1]+4}" text-anchor="end" style="font-size:10px;fill:var(--muted)">.05</text>
+      <text x="${N.i2[0]-34}" y="${N.i2[1]+4}" text-anchor="end" style="font-size:10px;fill:var(--muted)">.10</text>
+      <text x="${N.o1[0]+34}" y="${N.o1[1]+4}" style="font-size:10px;fill:var(--muted)">target .01</text>
+      <text x="${N.o2[0]+34}" y="${N.o2[1]+4}" style="font-size:10px;fill:var(--muted)">target .99</text>
+      </svg></div>`;
+  };
+  const draw=()=>{
+    drawNet();
+    const st=steps[s];
+    $('#l19work').innerHTML=`<p style="font-family:var(--sans);font-size:13px;color:var(--ink-2);margin:0 0 10px">${st.t}</p>
+      ${st.rows.length?`<table class="tbl"><tr><th>quantity</th><th style="text-align:left">arithmetic</th><th>value</th></tr>
+      ${st.rows.map(r=>`<tr><td class="mono">${r[0]}</td><td style="text-align:left;font-size:11px">${r[1]}</td><td style="color:var(--fwd)">${r[2]}</td></tr>`).join('')}</table>`:''}`;
+    $('#l19step').disabled = s>=steps.length-1;
+  };
+  $('#l19step').onclick=()=>{s++;draw();};
+  $('#l19rst').onclick=()=>{s=0;draw();};
+  draw();
+}});
+/* ---------- 20 ---------- */
+L({unit:"Backpropagation", title:"Backward pass: updating w₅", slides:"Slides 49–54",
+sub:"The chain rule, split into three honest pieces.",
+html:`
+<div class="prose">
+<p>Now we propagate backwards. We want to reduce the error by changing the weights, so consider <strong>w₅</strong>: what is the rate of change of the total error with respect to a change in w₅?</p>
+<p>We cannot compute that directly, so the chain rule splits it into three factors we <em>can</em> compute:</p>
+</div>
+<div class="eq">∂E<sub>total</sub>/∂<span class="hl-w">w₅</span> = (∂E<sub>total</sub>/∂out<sub>o1</sub>) × (∂out<sub>o1</sub>/∂net<sub>o1</sub>) × (∂net<sub>o1</sub>/∂<span class="hl-w">w₅</span>)
+<small>error → output · output → net input · net input → weight</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>The three factors</h4><span class="hint">Reveal them one at a time</span></div>
+  <div id="l20chain"></div>
+  <div class="btnrow"><button class="btn" id="l20step">▶ Next factor</button><button class="btn ghost" id="l20rst">Reset</button></div>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Apply the update rule</h4><span class="hint">Drag η and watch the new weight</span></div>
+  <div id="l20ctl"></div>
+  <div id="l20upd"></div>
+</div>
+<div class="callout"><span class="lab">All four output weights</span>
+<p>Repeating the same three-factor recipe gives <b>w₅⁺ = 0.35891648</b>, <b>w₆⁺ = 0.408666186</b>, <b>w₇⁺ = 0.511301270</b>, <b>w₈⁺ = 0.561370121</b>, with η = 0.5.</p></div>
+`,
+init(){
+  const outo1=0.75136507, outh1=0.593269992, t1=0.01, w5=0.40;
+  const f1=-(t1-outo1), f2=outo1*(1-outo1), f3=outh1, g=f1*f2*f3;
+  const parts=[
+    {n:"∂E<sub>total</sub> / ∂out<sub>o1</sub>", d:"= −(target − out<sub>o1</sub>) = −(0.01 − 0.75136507)", v:f1,
+     why:"How much does the total error change if the output changes? The derivative of ½(t−out)² is just −(t−out)."},
+    {n:"∂out<sub>o1</sub> / ∂net<sub>o1</sub>", d:"= out<sub>o1</sub>(1 − out<sub>o1</sub>) = 0.75136507 × 0.24863493", v:f2,
+     why:"How much does the output change if the net input changes? This is the derivative of the sigmoid — and note it is small, which is the vanishing gradient story in miniature."},
+    {n:"∂net<sub>o1</sub> / ∂w₅", d:"= out<sub>h1</sub> = 0.593269992", v:f3,
+     why:"How much does the net input change if w₅ changes? Since net = w₅·out_h1 + w₆·out_h2 + b₂, the answer is simply out_h1."}
+  ];
+  let s=0;
+  const draw=()=>{
+    $('#l20chain').innerHTML=parts.map((p,i)=>`
+      <div style="opacity:${i<s?1:.28};transition:opacity .35s;padding:12px 0;border-bottom:1px solid var(--rule-soft)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <span class="mono" style="font-size:13px;font-weight:600">${p.n}</span>
+          <span class="mono" style="font-size:15px;font-weight:700;color:var(--back)">${i<s?fmt(p.v,9):'?'}</span></div>
+        <div class="mono" style="font-size:11px;color:var(--muted);margin-top:3px">${p.d}</div>
+        ${i<s?`<p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-2);margin:8px 0 0">${p.why}</p>`:''}
+      </div>`).join('')+
+      `<div style="opacity:${s>=3?1:.28};transition:opacity .35s;padding:14px 0 0;text-align:center">
+        <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)">gradient ∂E<sub>total</sub>/∂w₅</div>
+        <div class="mono" style="font-size:28px;font-weight:700;color:var(--back)">${s>=3?fmt(g,9):'—'}</div>
+        <div class="mono" style="font-size:11px;color:var(--muted);margin-top:4px">${fmt(f1,6)} × ${fmt(f2,6)} × ${fmt(f3,6)}</div></div>`;
+    $('#l20step').disabled=s>=3;
+  };
+  $('#l20step').onclick=()=>{s++;draw();};
+  $('#l20rst').onclick=()=>{s=0;draw();};
+  draw();
+
+  $('#l20ctl').innerHTML=slider("learning rate η",0.05,1.5,.05,0.5);
+  const upd=()=>{
+    const eta=readSliders($('#l20ctl'))[0];
+    const nw=w5-eta*g;
+    $('#l20upd').innerHTML=`<div class="eq" style="margin-bottom:8px">
+      w₅⁺ = w₅ − η · ∂E<sub>total</sub>/∂w₅ = 0.40 − ${fmt(eta,2)} × ${fmt(g,9)} = <b style="color:var(--fwd)">${fmt(nw,8)}</b></div>
+      <p style="font-family:var(--sans);font-size:12.5px;color:var(--muted);margin:0">
+      The gradient is <b>positive</b>, meaning raising w₅ would raise the error — so we move w₅ <b>down</b>. With the lecture's η = 0.5 the answer is <b class="mono">0.35891648</b>.</p>`;
+  };
+  bindSliders($('#l20ctl'),upd); upd();
+}});
+
+/* ---------- 21 ---------- */
+L({unit:"Backpropagation", title:"Backward pass: reaching the hidden weights", slides:"Slides 57–61",
+sub:"Where backprop earns its name.",
+html:`
+<div class="prose">
+<p>Next we continue the backwards pass to calculate new values for <strong>w₁, w₂, w₃ and w₄</strong>. There is a twist here: out<sub>h1</sub> feeds into <strong>both</strong> o₁ and o₂, so its error contribution must be collected from both output neurons.</p>
+</div>
+<div class="eq">∂E<sub>total</sub>/∂out<sub>h1</sub> = ∂E<sub>o1</sub>/∂out<sub>h1</sub> + ∂E<sub>o2</sub>/∂out<sub>h1</sub>
+<small>and each of those unpacks again: ∂E<sub>o1</sub>/∂out<sub>h1</sub> = (∂E<sub>o1</sub>/∂net<sub>o1</sub>) × (∂net<sub>o1</sub>/∂out<sub>h1</sub>), where ∂net<sub>o1</sub>/∂out<sub>h1</sub> = w₅</small></div>
+<div class="panel">
+  <div class="panel-head"><h4>Error flowing back into h₁</h4><span class="hint">Two paths, summed</span></div>
+  <div id="l21viz"></div>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Putting it together for w₁</h4><span class="live">exact lecture values</span></div>
+  <table class="tbl">
+    <tr><th>quantity</th><th style="text-align:left">meaning</th><th>value</th></tr>
+    <tr><td class="mono">∂E<sub>o1</sub>/∂net<sub>o1</sub></td><td style="text-align:left">0.74136507 × 0.186815602</td><td>0.138498562</td></tr>
+    <tr><td class="mono">∂net<sub>o1</sub>/∂out<sub>h1</sub></td><td style="text-align:left">= w₅</td><td>0.40</td></tr>
+    <tr><td class="mono">∂E<sub>o1</sub>/∂out<sub>h1</sub></td><td style="text-align:left">product of the two above</td><td>0.055399425</td></tr>
+    <tr><td class="mono">∂E<sub>o2</sub>/∂out<sub>h1</sub></td><td style="text-align:left">same recipe via o₂</td><td>−0.019049119</td></tr>
+    <tr><td class="mono"><b>∂E<sub>total</sub>/∂out<sub>h1</sub></b></td><td style="text-align:left">the two paths summed</td><td><b>0.036350306</b></td></tr>
+    <tr><td class="mono">∂out<sub>h1</sub>/∂net<sub>h1</sub></td><td style="text-align:left">sigmoid derivative at h₁</td><td>0.241300709</td></tr>
+    <tr><td class="mono">∂net<sub>h1</sub>/∂w₁</td><td style="text-align:left">= i₁</td><td>0.05</td></tr>
+    <tr><td class="mono"><b>∂E<sub>total</sub>/∂w₁</b></td><td style="text-align:left">all three multiplied</td><td style="color:var(--back)"><b>0.000438568</b></td></tr>
+    <tr><td class="mono"><b>w₁⁺</b></td><td style="text-align:left">0.15 − 0.5 × 0.000438568</td><td style="color:var(--fwd)"><b>0.149780716</b></td></tr>
+  </table>
+</div>
+<div class="callout"><span class="lab">Look at the size of that number</span>
+<p>The gradient for w₁ is <b>0.00044</b> — nearly 200× smaller than the gradient for w₅ (0.082). One layer further from the loss and the signal has already shrunk dramatically. That is the vanishing gradient problem showing up in a network with a single hidden layer. Now imagine fifty.</p></div>
+`,
+init(){
+  const W=520,H=190;
+  const N={h1:[110,95],o1:[380,50],o2:[380,145]};
+  $('#l21viz').innerHTML=`<div class="svgwrap"><svg viewBox="0 0 ${W} ${H+28}">
+    <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="var(--back)"/></marker></defs>
+    <line x1="${N.o1[0]-26}" y1="${N.o1[1]}" x2="${N.h1[0]+30}" y2="${N.h1[1]-8}" stroke="var(--back)" stroke-width="2.6" marker-end="url(#ah)"/>
+    <line x1="${N.o2[0]-26}" y1="${N.o2[1]}" x2="${N.h1[0]+30}" y2="${N.h1[1]+8}" stroke="var(--back)" stroke-width="2.6" marker-end="url(#ah)" opacity=".6"/>
+    <ellipse cx="${N.h1[0]}" cy="${N.h1[1]}" rx="26" ry="19" fill="#7FA8D9" stroke="var(--ink)" stroke-width="1.4"/>
+    <text x="${N.h1[0]}" y="${N.h1[1]+4}" text-anchor="middle" style="font-weight:700">h₁</text>
+    <ellipse cx="${N.o1[0]}" cy="${N.o1[1]}" rx="26" ry="19" fill="#7FA8D9" stroke="var(--ink)" stroke-width="1.4"/>
+    <text x="${N.o1[0]}" y="${N.o1[1]+4}" text-anchor="middle" style="font-weight:700">o₁</text>
+    <ellipse cx="${N.o2[0]}" cy="${N.o2[1]}" rx="26" ry="19" fill="#7FA8D9" stroke="var(--ink)" stroke-width="1.4"/>
+    <text x="${N.o2[0]}" y="${N.o2[1]+4}" text-anchor="middle" style="font-weight:700">o₂</text>
+    <text x="255" y="56" text-anchor="middle" style="font-size:11px;fill:var(--back);font-weight:600">+0.055399</text>
+    <text x="255" y="146" text-anchor="middle" style="font-size:11px;fill:var(--back);font-weight:600">−0.019049</text>
+    <text x="${N.h1[0]}" y="${N.h1[1]+42}" text-anchor="middle" style="font-size:12px;fill:var(--back);font-weight:700">total 0.036350</text>
+    <text class="lbl" x="${W-6}" y="${H+18}" text-anchor="end">gradient travels right to left</text>
+    </svg></div>
+    <p style="font-family:var(--sans);font-size:13px;color:var(--ink-2);margin:12px 0 0">
+    The two paths partly cancel: o₁ says "h₁ should be lower", o₂ says "h₁ should be higher, but less strongly". h₁ obeys the sum.</p>`;
+}});
+
+/* ---------- 22 ---------- */
+L({unit:"Backpropagation", title:"Run the training loop", slides:"Slides 55–56, 62–63",
+sub:"Forward, backward, update — ten thousand times.",
+html:`
+<div class="prose">
+<p>Once every weight has been updated we <strong>propagate forward again</strong> and calculate the output. Again we calculate the error. If the error is minimal we stop; otherwise we propagate backwards and update the weights again. This process keeps repeating until the error becomes minimal.</p>
+<p>When we fed forward 0.05 and 0.1 originally the error was <strong>0.298371109</strong>. After one full round of backpropagation the total error is down to <strong>0.291027924</strong>. It might not seem like much — but after repeating the process <strong>10,000 times</strong> the error plummets to <strong>0.0000351085</strong>, and the two output neurons generate <strong>0.015912196</strong> (target 0.01) and <strong>0.984065734</strong> (target 0.99).</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h4>Live training — this network is really running in your browser</h4><span class="live">simulation</span></div>
+  <div id="l22ctl"></div>
+  <div class="btnrow" style="margin:10px 0 16px">
+    <button class="btn" id="l22one">▶ 1 epoch</button>
+    <button class="btn" id="l22h">▶▶ 100 epochs</button>
+    <button class="btn" id="l22k">▶▶▶ Train to 10,000</button>
+    <button class="btn ghost" id="l22rst">Reset to slide values</button>
+  </div>
+  <div id="l22stats"></div>
+  <div id="l22chart" style="margin-top:16px"></div>
+  <div id="l22tbl" style="margin-top:16px"></div>
+</div>
+<div class="callout"><span class="lab">You have now seen the whole loop</span>
+<p>Units → activations → layers → matrix form → softmax → loss → gradients → backprop → repeat. Every model in the rest of the course, including the Transformer, is this same loop with a different arrangement of the middle.</p></div>
+`,
+init(){
+  const I=[.05,.10], T=[.01,.99];
+  let w,epoch,hist,timer=null;
+  const reset=()=>{ w={w1:.15,w2:.20,w3:.25,w4:.30,b1:.35,w5:.40,w6:.45,w7:.50,w8:.55,b2:.60};
+    epoch=0; hist=[]; if(timer){clearInterval(timer);timer=null;} };
+  const fwd=()=>{
+    const nh1=w.w1*I[0]+w.w2*I[1]+w.b1, oh1=sig(nh1);
+    const nh2=w.w3*I[0]+w.w4*I[1]+w.b1, oh2=sig(nh2);
+    const no1=w.w5*oh1+w.w6*oh2+w.b2, oo1=sig(no1);
+    const no2=w.w7*oh1+w.w8*oh2+w.b2, oo2=sig(no2);
+    const E=0.5*Math.pow(T[0]-oo1,2)+0.5*Math.pow(T[1]-oo2,2);
+    return {oh1,oh2,oo1,oo2,E};
+  };
+  const train=(eta)=>{
+    const s=fwd();
+    const d1=-(T[0]-s.oo1)*s.oo1*(1-s.oo1);
+    const d2=-(T[1]-s.oo2)*s.oo2*(1-s.oo2);
+    const gw5=d1*s.oh1, gw6=d1*s.oh2, gw7=d2*s.oh1, gw8=d2*s.oh2;
+    const dh1=(d1*w.w5+d2*w.w7)*s.oh1*(1-s.oh1);
+    const dh2=(d1*w.w6+d2*w.w8)*s.oh2*(1-s.oh2);
+    const gw1=dh1*I[0], gw2=dh1*I[1], gw3=dh2*I[0], gw4=dh2*I[1];
+    /* biases held fixed, exactly as in the lecture's worked example */
+    w.w5-=eta*gw5; w.w6-=eta*gw6; w.w7-=eta*gw7; w.w8-=eta*gw8;
+    w.w1-=eta*gw1; w.w2-=eta*gw2; w.w3-=eta*gw3; w.w4-=eta*gw4;
+    epoch++;
+    if(epoch<=60||epoch%25===0) hist.push([epoch,s.E]);
+    if(hist.length>500) hist=hist.filter((_,i)=>i%2===0);
+  };
+  $('#l22ctl').innerHTML=slider("learning rate η",0.05,2,.05,0.5);
+  const render=()=>{
+    const s=fwd();
+    $('#l22stats').innerHTML=`<div class="grid3">
+      ${[["epoch",epoch,"var(--ink)"],["total error",s.E<0.0001?s.E.toExponential(3):fmt(s.E,7),s.E<0.01?'var(--fwd)':'var(--back)'],
+         ["outputs",fmt(s.oo1,6)+" / "+fmt(s.oo2,6),"var(--ink)"]]
+        .map(([k,v,c])=>`<div style="text-align:center">
+          <div class="lbl" style="font-family:var(--sans);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)">${k}</div>
+          <div class="mono" style="font-size:${String(v).length>14?14:22}px;font-weight:700;color:${c};margin-top:2px">${v}</div></div>`).join('')}
+      </div>
+      <p style="font-family:var(--sans);font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0">targets are 0.01 and 0.99 · the two biases are held fixed, as in the worked example</p>`;
+    /* chart */
+    const W=560,H=170;
+    if(hist.length>1){
+      const maxE=Math.max(...hist.map(h=>h[1])), maxEp=hist[hist.length-1][0];
+      const px=e=>Math.log10(e+1)/Math.log10(maxEp+1)*W, py=v=>H-clamp(v/maxE,0,1)*H;
+      const d=hist.map((h,i)=>(i?'L':'M')+px(h[0]).toFixed(1)+' '+py(h[1]).toFixed(1)).join(' ');
+      $('#l22chart').innerHTML=`<div class="svgwrap"><svg viewBox="-38 -14 ${W+56} ${H+42}">
+        <line class="axis" x1="0" y1="${H}" x2="${W}" y2="${H}"/><line class="axis" x1="0" y1="0" x2="0" y2="${H}"/>
+        <path d="${d}" fill="none" stroke="var(--back)" stroke-width="2.2"/>
+        <text class="lbl" x="-8" y="8" text-anchor="end">${fmt(maxE,4)}</text>
+        <text class="lbl" x="-8" y="${H+4}" text-anchor="end">0</text>
+        <text class="lbl" x="${W}" y="${H+26}" text-anchor="end">epochs (log scale) → ${maxEp}</text>
+        <text class="lbl" x="0" y="-2">total error</text></svg></div>`;
+    } else $('#l22chart').innerHTML='';
+    const init={w1:.15,w2:.20,w3:.25,w4:.30,w5:.40,w6:.45,w7:.50,w8:.55};
+    $('#l22tbl').innerHTML=`<table class="tbl"><tr><th>weight</th><th>start</th><th>now</th><th>moved</th></tr>
+      ${Object.keys(init).map(k=>{const dlt=w[k]-init[k];
+        return `<tr><td>${k}</td><td style="color:var(--muted)">${fmt(init[k],3)}</td><td>${fmt(w[k],6)}</td>
+        <td class="${dlt>=0?'chg-up':'chg-dn'}">${dlt>=0?'+':''}${fmt(dlt,4)}</td></tr>`;}).join('')}</table>`;
+  };
+  const loop=(target)=>{
+    if(timer)clearInterval(timer);
+    const eta=readSliders($('#l22ctl'))[0];
+    timer=setInterval(()=>{
+      for(let i=0;i<Math.max(1,Math.floor((target-epoch)/40));i++){ if(epoch>=target)break; train(eta); }
+      if(epoch<target) train(eta);
+      render();
+      if(epoch>=target){clearInterval(timer);timer=null;}
+    },16);
+  };
+  $('#l22one').onclick=()=>{train(readSliders($('#l22ctl'))[0]);render();};
+  $('#l22h').onclick=()=>loop(epoch+100);
+  $('#l22k').onclick=()=>loop(10000);
+  $('#l22rst').onclick=()=>{reset();render();};
+  reset(); render();
+}});
+/* ---------- 23 ---------- */
+L({unit:"Review", title:"Check yourself", slides:"Whole lecture",
+sub:"Ten questions covering everything above.",
+html:`
+<div class="prose">
+<p>Answer before you reveal. If a question stings, the lesson it came from is named underneath — go back to it.</p>
+</div>
+<div id="l23quiz"></div>
+<div class="panel" id="l23score" style="text-align:center"></div>
+`,
+init(){
+  const Q=[
+    {q:"What are the only two arithmetic operations inside a single unit, before activation?",
+     a:"Multiply each input by its weight, then add everything up together with the bias. z = w·x + b.", from:"The unit: a weighted sum"},
+    {q:"Why can't we build a deep network out of purely linear units?",
+     a:"A stack of linear layers composes into a single linear layer. Depth adds no expressive power without a non-linearity between layers.", from:"Activation: adding the bend"},
+    {q:"Why is tanh usually preferred over sigmoid for hidden layers?",
+     a:"It is zero-centred, ranging −1 to +1, and smoothly differentiable, which makes optimisation better behaved. Sigmoid is still right when you want an output read as a probability.", from:"tanh and ReLU"},
+    {q:"State the vanishing gradient problem in one sentence.",
+     a:"Backprop multiplies one local derivative per layer; sigmoid and tanh derivatives are well below 1 in the saturated regions, so after many layers the product is near zero and early layers stop learning.", from:"The vanishing gradient problem"},
+    {q:"Why exactly can a perceptron not compute XOR?",
+     a:"A perceptron is a linear classifier — its decision boundary is a single straight line. XOR's two positive cases sit on one diagonal and its two negative cases on the other, so no line separates them. XOR is not linearly separable.", from:"The perceptron cannot do XOR"},
+    {q:"What does the hidden layer do to the XOR inputs that makes the problem solvable?",
+     a:"It builds a new representation. In hidden space the points [0,1] and [1,0] collapse onto the same location, and the positive and negative cases become linearly separable.", from:"Two layers of ReLU solve XOR"},
+    {q:"Give the three-step computation of a hidden layer, and the shape of W.",
+     a:"Multiply W by x, add bias b, apply activation g: h = g(Wx + b). If there are n₀ inputs and n₁ hidden units, W is n₁ × n₀.", from:"h = σ(Wx + b)"},
+    {q:"Why can't z = Uh be the classifier's final output?",
+     a:"z is a vector of arbitrary real numbers. Classification needs a probability distribution, so softmax exponentiates and normalises z so the entries lie in (0,1) and sum to 1.", from:"The output layer and softmax"},
+    {q:"What does multiplying the embedding matrix E by a one-hot vector actually accomplish?",
+     a:"It selects the column of E belonging to that word — a lookup. Every other product is zero, so real implementations index directly into E.", from:"One-hot vectors and the embedding lookup"},
+    {q:"Write the chain-rule decomposition backprop uses for an output weight w₅.",
+     a:"∂E/∂w₅ = (∂E/∂out_o1)(∂out_o1/∂net_o1)(∂net_o1/∂w₅) — error to output, output to net input, net input to weight. The three factors are −(t−out), out(1−out), and out_h1.", from:"Backward pass: updating w₅"}
+  ];
+  let seen=0;
+  $('#l23quiz').innerHTML=Q.map((x,i)=>`
+    <div class="panel" style="margin:14px 0">
+      <div style="display:flex;gap:12px;align-items:baseline">
+        <span class="mono" style="font-size:11px;color:var(--muted)">${String(i+1).padStart(2,'0')}</span>
+        <div style="flex:1">
+          <p style="margin:0 0 10px;font-size:16px">${x.q}</p>
+          <button class="btn ghost" data-i="${i}">Reveal answer</button>
+          <div id="a${i}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule-soft)">
+            <p style="margin:0;font-size:15px;color:var(--ink-2)">${x.a}</p>
+            <div class="lbl" style="font-family:var(--sans);font-size:10.5px;color:var(--muted);margin-top:8px">Lesson: ${x.from}</div>
+          </div>
+        </div></div></div>`).join('');
+  const score=()=>{ $('#l23score').innerHTML=`
+    <div class="lbl" style="font-family:var(--sans);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)">revealed</div>
+    <div class="mono" style="font-size:30px;font-weight:700">${seen} / ${Q.length}</div>
+    <p style="font-family:var(--sans);font-size:13px;color:var(--muted);margin:6px 0 0">
+    ${seen===Q.length?"That's the whole lecture. Go back to any lesson from the sidebar to replay a simulation.":"Work through them all — the ones you have to reveal are your revision list."}</p>`;};
+  $$('#l23quiz button').forEach(b=>b.onclick=()=>{
+    const el=$('#a'+b.dataset.i);
+    if(el.style.display==='none'){el.style.display='block';b.textContent='Hide answer';b.classList.add('fade');seen++;score();}
+    else{el.style.display='none';b.textContent='Reveal answer';seen--;score();}
+  });
+  score();
+}});
+
+/* ============================================================
+   Router
+   ============================================================ */
+let cur=0;
+const visited=new Set([0]);
+
+function buildNav(){
+  let html='',lastUnit=null;
+  LESSONS.forEach((l,i)=>{
+    if(l.unit!==lastUnit){ html+=`<div class="unit-label">${l.unit}</div>`; lastUnit=l.unit; }
+    html+=`<a data-i="${i}" tabindex="0"><span class="n">${String(i+1).padStart(2,'0')}</span><span>${l.title}</span></a>`;
+  });
+  $('#nav').innerHTML=html;
+  $$('#nav a').forEach(a=>{
+    a.onclick=()=>go(+a.dataset.i);
+    a.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();go(+a.dataset.i);} };
+  });
+}
+function refreshNav(){
+  $$('#nav a').forEach(a=>{
+    const i=+a.dataset.i;
+    a.classList.toggle('active',i===cur);
+    a.classList.toggle('done',visited.has(i)&&i!==cur);
+  });
+  const pct=visited.size/LESSONS.length*100;
+  $('#pbar').style.width=pct+'%';
+  $('#pnum').textContent=`${visited.size} / ${LESSONS.length} lessons opened`;
+}
+function go(i){
+  cur=clamp(i,0,LESSONS.length-1);
+  visited.add(cur);
+  const l=LESSONS[cur];
+  $('#stage').innerHTML=`<div class="fade">
+    <div class="eyebrow"><span class="tag">${String(cur+1).padStart(2,'0')}</span><span>${l.unit}</span><span style="color:var(--rule)">/</span><span>${l.slides}</span></div>
+    <h2 class="title">${l.title}</h2>
+    <p class="sub">${l.sub}</p>
+    ${l.html}</div>`;
+  try{ l.init&&l.init(); }catch(e){ console.error('lesson init failed',cur,e); }
+  $('#fnum').textContent=`${cur+1} / ${LESSONS.length}`;
+  $('#ftitle').textContent=l.title;
+  $('#prev').disabled=cur===0;
+  $('#next').textContent = cur===LESSONS.length-1 ? 'Start over ↺' : 'Next →';
+  refreshNav();
+  window.scrollTo({top:0,behavior:'instant'});
+  closeSide();
+  if(location.hash!=='#'+(cur+1)) history.replaceState(null,'','#'+(cur+1));
+}
+$('#next').onclick=()=>go(cur===LESSONS.length-1?0:cur+1);
+$('#prev').onclick=()=>go(cur-1);
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea')) return;
+  if(e.key==='ArrowRight') go(cur+1);
+  if(e.key==='ArrowLeft')  go(cur-1);
+});
+/* mobile drawer */
+function openSide(){ $('#side').classList.add('open'); $('#scrim').classList.add('on'); }
+function closeSide(){ $('#side').classList.remove('open'); $('#scrim').classList.remove('on'); }
+$('#menubtn').onclick=openSide;
+$('#scrim').onclick=closeSide;
+
+buildNav();
+const start=parseInt((location.hash||'').replace('#',''),10);
+go(Number.isFinite(start)&&start>=1?start-1:0);
+</script>
+</body>
+</html>
